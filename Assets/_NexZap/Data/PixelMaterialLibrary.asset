@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b79e5e8ebb98d18448ba99da17f2f4c9, type: 3}
+  m_Name: PixelMaterialLibrary
+  m_EditorClassIdentifier: 
+  serializationData:
+    SerializedFormat: 2
+    SerializedBytes: 
+    ReferencedUnityObjects: []
+    SerializedBytesString: 
+    Prefab: {fileID: 0}
+    PrefabModificationsReferencedUnityObjects: []
+    PrefabModifications: []
+    SerializationNodes: []
+  colors:
+  - id: 58abcfe1c72845f19bdd450feceab1a6
+    displayName: "\u0110\u1ECF"
+    tint: {r: 1, g: 0, b: 0, a: 1}
+    material: {fileID: 2100000, guid: eccba2b427d59dc49b0429a3359f470a, type: 2}
+  - id: 04d6908279094439a21b176ae7d252eb
+    displayName: "Xanh D\u01B0\u01A1ng"
+    tint: {r: 0.0552792, g: 0, b: 0.87169814, a: 1}
+    material: {fileID: 2100000, guid: 048301037fed9ea439121a5d347bb452, type: 2}
+  - id: a2b5ce119aca49db8d8f8a9ad298a7fb
+    displayName: "Xanh L\u1EE5c"
+    tint: {r: 0.12602408, g: 0.8037735, b: 0.040946886, a: 1}
+    material: {fileID: 2100000, guid: 9e1532be570e81841b56aa4e367fc964, type: 2}
+  - id: 985e49645e474b15918b1f44f72de5eb
+    displayName: "V\xE0ng "
+    tint: {r: 0.9979012, g: 1, b: 0, a: 1}
+    material: {fileID: 2100000, guid: 0df58924eb6541741a5f991daef5474b, type: 2}
+  - id: f7ee2784bb6b407da9ff864309c94b34
+    displayName: Cam
+    tint: {r: 0.9764706, g: 0.53333336, b: 0.078431375, a: 1}
+    material: {fileID: 2100000, guid: ffd1a198cf957634d9dc73f445c410eb, type: 2}
+  - id: cc421a2b5d344ebbb001ab3e606188df
+    displayName: "\u0110en"
+    tint: {r: 0, g: 0, b: 0, a: 1}
+    material: {fileID: 2100000, guid: 277e959167b721e4f929ba8a620aed2a, type: 2}
+  - id: 38098f653a834f1283e3d412a8a53012
+    displayName: "Tr\u1EAFng"
+    tint: {r: 1, g: 1, b: 1, a: 1}
+    material: {fileID: 2100000, guid: a9fff4705bcbd0541988193e31e7d1d8, type: 2}
+  - id: a5e754658b774c21b31d09439655f200
+    displayName: "X\xE1m"
+    tint: {r: 0.6150943, g: 0.6150943, b: 0.6150943, a: 1}
+    material: {fileID: 2100000, guid: 65d748da44fdfe443a45b87ec2ee0845, type: 2}
+  - id: da61cbb4338840449e376dbf5da7f57b
+    displayName: "H\u1ED3ng"
+    tint: {r: 1, g: 0, b: 0.85882354, a: 1}
+    material: {fileID: 2100000, guid: f8948e07fa6c58f4d9e3077f46ccc536, type: 2}
+  - id: 840175d5a4cc4a03aa97b704d7c5e62d
+    displayName: "N\xE2u"
+    tint: {r: 0.2981131, g: 0.18457034, b: 0.01518687, a: 1}
+    material: {fileID: 2100000, guid: ea897a26c9fb90c4c8279e6ee1f5b5e9, type: 2}
