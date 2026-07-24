@@ -48,6 +48,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   bodyRenderer: {fileID: 3731113709533996075}
   fillRenderer: {fileID: 4856992258316891858}
+  emptyCellColor: {r: 0.04, g: 0.04, b: 0.055, a: 1}
   previewStrength: 0.2
   previewDesaturation: 0
   unfilledSmoothness: 0

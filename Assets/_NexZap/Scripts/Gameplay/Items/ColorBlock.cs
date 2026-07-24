@@ -29,6 +29,7 @@ namespace NexZap.Gameplay.Items
         [SerializeField] private int labelSortingOffset = 1;
 
         private Tween pulseTween;
+        private static Material sharedSpriteMaterial;
         private Color baseColor;
         private bool isSelectable;
         private bool isDimmed;
@@ -50,7 +51,40 @@ namespace NexZap.Gameplay.Items
                 bodyCollider = GetComponent<Collider2D>();
             }
 
+            EnsureValidSpriteMaterials();
             ConfigureLabelSorting();
+        }
+
+        private void EnsureValidSpriteMaterials()
+        {
+            if (sharedSpriteMaterial == null)
+            {
+                var shader = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default")
+                    ?? Shader.Find("Sprites/Default");
+                if (shader != null)
+                {
+                    sharedSpriteMaterial = new Material(shader)
+                    {
+                        name = "ColorBlock Sprite Material",
+                        hideFlags = HideFlags.HideAndDontSave
+                    };
+                }
+            }
+
+            if (sharedSpriteMaterial == null)
+            {
+                return;
+            }
+
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.sharedMaterial = sharedSpriteMaterial;
+            }
+
+            if (highlightRenderer != null)
+            {
+                highlightRenderer.sharedMaterial = sharedSpriteMaterial;
+            }
         }
 
         // Ép text render trên body (cùng sorting layer, order cao hơn) để không bị đè/nhấp nháy.
@@ -76,6 +110,7 @@ namespace NexZap.Gameplay.Items
 
         public void Initialize(string colorId, int capacity, PixelMaterialLibrary materialLibrary)
         {
+            EnsureValidSpriteMaterials();
             ColorId = colorId ?? PixelColorIds.Empty;
             RemainingCapacity = capacity;
             State = ColorBlockState.Idle;

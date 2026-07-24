@@ -26,13 +26,19 @@ MonoBehaviour:
       Data: 0|System.String[,], mscorlib
     - Name: 
       Entry: 12
-      Data: 64
+      Data: 9
     - Name: ranks
       Entry: 1
-      Data: 8|8
+      Data: 3|3
     - Name: 
-      Entry: 6
-      Data: 
+      Entry: 1
+      Data: da61cbb4338840449e376dbf5da7f57b
+    - Name: 
+      Entry: 1
+      Data: 04d6908279094439a21b176ae7d252eb
+    - Name: 
+      Entry: 1
+      Data: da61cbb4338840449e376dbf5da7f57b
     - Name: 
       Entry: 6
       Data: 
@@ -41,187 +47,16 @@ MonoBehaviour:
       Data: 58abcfe1c72845f19bdd450feceab1a6
     - Name: 
       Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
+      Data: 04d6908279094439a21b176ae7d252eb
     - Name: 
       Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
+      Data: da61cbb4338840449e376dbf5da7f57b
     - Name: 
       Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
+      Data: 04d6908279094439a21b176ae7d252eb
     - Name: 
       Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 1
-      Data: 58abcfe1c72845f19bdd450feceab1a6
-    - Name: 
-      Entry: 6
-      Data: 
-    - Name: 
-      Entry: 6
-      Data: 
+      Data: f7ee2784bb6b407da9ff864309c94b34
     - Name: 
       Entry: 13
       Data: 
@@ -231,17 +66,26 @@ MonoBehaviour:
     - Name: legacyBlockColorGrid
       Entry: 6
       Data: 
-  width: 8
-  height: 8
+  width: 3
+  height: 3
   spacing: 0.5
   pixelScale: {x: 1, y: 1}
   idlePixelPrefab: {fileID: 0}
   fillPixelPrefab: {fileID: 0}
   pixelMaterialLibrary: {fileID: 11400000, guid: d95da50ed4d339a4d8b6365f48a38a1e, type: 2}
-  brushColorId: 58abcfe1c72845f19bdd450feceab1a6
+  brushColorId: da61cbb4338840449e376dbf5da7f57b
   eraser: 0
   selectionLines:
   - blocks:
     - legacyColor: 0
+      colorId: da61cbb4338840449e376dbf5da7f57b
+      capacity: 3
+    - legacyColor: 0
+      colorId: 04d6908279094439a21b176ae7d252eb
+      capacity: 3
+    - legacyColor: 0
       colorId: 58abcfe1c72845f19bdd450feceab1a6
-      capacity: 27
+      capacity: 1
+    - legacyColor: 0
+      colorId: f7ee2784bb6b407da9ff864309c94b34
+      capacity: 1

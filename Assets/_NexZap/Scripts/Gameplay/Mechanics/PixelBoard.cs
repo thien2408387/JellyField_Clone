@@ -24,6 +24,7 @@ namespace NexZap.Gameplay.Mechanics
         private readonly List<PixelCell> cells = new();
         private readonly List<PixelCell> unfilledCells = new();
         private readonly Dictionary<Vector2Int, PixelCell> cellLookup = new();
+        private readonly Dictionary<string, int> remainingTargetsByColor = new();
 
         // Snapshot lớp peel ngoài cùng cho 1 lần chạy block; visibility qua line-of-sight lúc TryFill.
         private HashSet<PixelCell> fillWaveSnapshot;
@@ -36,6 +37,10 @@ namespace NexZap.Gameplay.Mechanics
         public int Width { get; private set; }
         public int Height { get; private set; }
         public bool IsComplete => unfilledCells.Count == 0;
+        public int RemainingTarget { get; private set; }
+        public int TotalTarget { get; private set; }
+        public bool IsTargetComplete => RemainingTarget <= 0;
+        public IReadOnlyDictionary<string, int> RemainingTargetsByColor => remainingTargetsByColor;
         public Bounds WorldBounds { get; private set; }
 
         public void Build(BaseLevel levelData)
@@ -43,7 +48,7 @@ namespace NexZap.Gameplay.Mechanics
             Clear();
 
             cellSize = levelData.spacing;
-            pixelExtent = levelData.pixelScale;
+            pixelExtent = GetNonOverlappingPixelExtent(levelData.pixelScale, cellSize);
 
             Width = levelData.width;
             Height = levelData.height;
@@ -61,29 +66,110 @@ namespace NexZap.Gameplay.Mechanics
                 for (var x = 0; x < Width; x++)
                 {
                     var targetColorId = levelData.GetCellColorId(x, y);
-                    if (string.IsNullOrEmpty(targetColorId))
-                    {
-                        continue;
-                    }
-
                     var cell = Instantiate(cellPrefab, cellsRoot);
                     cell.transform.localPosition = new Vector3(offsetX + x * cellSize, offsetY + y * cellSize, 0f);
                     var gridPos = new Vector2Int(x, y);
                     cell.Initialize(gridPos, targetColorId, pixelExtent, pixelDepth, materialLibrary);
+                    if (!string.IsNullOrEmpty(targetColorId))
+                    {
+                        cell.ShowAsExistingColor();
+                        RemainingTarget++;
+                        remainingTargetsByColor.TryGetValue(targetColorId, out var colorCount);
+                        remainingTargetsByColor[targetColorId] = colorCount + 1;
+                    }
                     cells.Add(cell);
-                    unfilledCells.Add(cell);
                     cellLookup[gridPos] = cell;
                 }
             }
+
+            TotalTarget = RemainingTarget;
 
             RecalculateBounds();
             RefreshFillableFlags();
         }
 
+        public bool TryResolveDrop(Vector3 worldPosition, string colorId, out int removedCount)
+        {
+            removedCount = 0;
+            if (string.IsNullOrEmpty(colorId))
+            {
+                return false;
+            }
+
+            var dropPosition = WorldToGrid(worldPosition);
+            if (!cellLookup.TryGetValue(dropPosition, out var dropCell) || !dropCell.IsEmpty)
+            {
+                return false;
+            }
+
+            var matched = new HashSet<PixelCell>();
+            var queue = new Queue<PixelCell>();
+            foreach (var offset in Neighbors)
+            {
+                if (cellLookup.TryGetValue(dropPosition + offset, out var neighbor) &&
+                    neighbor.TargetColorId == colorId)
+                {
+                    matched.Add(neighbor);
+                    queue.Enqueue(neighbor);
+                }
+            }
+
+            if (queue.Count == 0)
+            {
+                dropCell.SetPlacedColor(colorId);
+                return true;
+            }
+
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                foreach (var offset in Neighbors)
+                {
+                    if (!cellLookup.TryGetValue(current.GridPosition + offset, out var neighbor) ||
+                        neighbor.TargetColorId != colorId || !matched.Add(neighbor))
+                    {
+                        continue;
+                    }
+
+                    queue.Enqueue(neighbor);
+                }
+            }
+
+            var removedTargetCount = 0;
+            foreach (var cell in matched)
+            {
+                if (cell.CountsTowardTarget)
+                {
+                    removedTargetCount++;
+                }
+
+                cell.ClearColor();
+            }
+
+            removedCount = matched.Count;
+            RemainingTarget = Mathf.Max(0, RemainingTarget - removedTargetCount);
+            remainingTargetsByColor.TryGetValue(colorId, out var remainingForColor);
+            remainingTargetsByColor[colorId] = Mathf.Max(0, remainingForColor - removedTargetCount);
+            return true;
+        }
+
+        public bool TryGetDropWorldPosition(Vector3 worldPosition, out Vector3 snappedPosition)
+        {
+            var gridPosition = WorldToGrid(worldPosition);
+            if (cellLookup.TryGetValue(gridPosition, out var cell) && cell.IsEmpty)
+            {
+                snappedPosition = cell.transform.position;
+                return true;
+            }
+
+            snappedPosition = worldPosition;
+            return false;
+        }
+
         public void ApplyLayout(BaseLevel levelData)
         {
             cellSize = levelData.spacing;
-            pixelExtent = levelData.pixelScale;
+            pixelExtent = GetNonOverlappingPixelExtent(levelData.pixelScale, cellSize);
 
             var offsetX = -(Width - 1) * cellSize * 0.5f;
             var offsetY = -(Height - 1) * cellSize * 0.5f;
@@ -96,6 +182,14 @@ namespace NexZap.Gameplay.Mechanics
             }
 
             RecalculateBounds();
+        }
+
+        private static Vector2 GetNonOverlappingPixelExtent(Vector2 requestedSize, float spacing)
+        {
+            var maxSize = Mathf.Max(0.01f, spacing);
+            return new Vector2(
+                Mathf.Clamp(requestedSize.x, 0.01f, maxSize),
+                Mathf.Clamp(requestedSize.y, 0.01f, maxSize));
         }
 
         private void RefreshFillableFlags()
@@ -576,7 +670,10 @@ namespace NexZap.Gameplay.Mechanics
             cells.Clear();
             unfilledCells.Clear();
             cellLookup.Clear();
+            remainingTargetsByColor.Clear();
             fillWaveSnapshot = null;
+            RemainingTarget = 0;
+            TotalTarget = 0;
         }
 
         private void Reset()

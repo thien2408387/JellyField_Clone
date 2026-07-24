@@ -64,7 +64,7 @@ namespace NexZap.Gameplay.Level
             gameplayController.LevelCompleted += HandleLevelCompleted;
         }
 
-        // Nghe thay đổi của level -> chỉnh trong editor là size pixel + đường di chuyển cập nhật ngay khi đang chạy.
+        // Nghe thay đổi của level và dựng lại toàn bộ board để màu/vị trí luôn khớp editor.
         private void SubscribeToLevel(BaseLevel levelData)
         {
             if (subscribedLevel == levelData)
@@ -92,8 +92,7 @@ namespace NexZap.Gameplay.Level
                 return;
             }
 
-            gameplayController.PixelBoard.ApplyLayout(currentLevel);
-            gameplayController.CircularPath.BuildAround(gameplayController.PixelBoard);
+            ReloadLevel();
         }
 
         private void HandleLevelCompleted()

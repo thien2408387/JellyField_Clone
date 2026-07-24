@@ -10,6 +10,7 @@ namespace NexZap.Gameplay.Mechanics
         [SerializeField] private MeshRenderer fillRenderer;
 
         [Header("Preview")]
+        [SerializeField] private Color emptyCellColor = new Color(0.04f, 0.04f, 0.055f, 1f);
         [SerializeField, Range(0f, 1f)] private float previewStrength = 0.28f;
         [SerializeField, Range(0f, 1f)] private float previewDesaturation = 0.45f;
         [SerializeField, Range(0f, 1f)] private float unfilledSmoothness = 0.05f;
@@ -26,12 +27,16 @@ namespace NexZap.Gameplay.Mechanics
         private static readonly int SmoothnessId = Shader.PropertyToID("_Smoothness");
 
         private PixelMaterialLibrary materialLibrary;
+        private Material emptyCellMaterial;
         private MaterialPropertyBlock bodyPropertyBlock;
         private MaterialPropertyBlock fillPropertyBlock;
+        private bool isExistingBoardColor;
 
         public Vector2Int GridPosition { get; private set; }
         public string TargetColorId { get; private set; }
         public bool IsFilled { get; private set; }
+        public bool IsEmpty => string.IsNullOrEmpty(TargetColorId);
+        public bool CountsTowardTarget { get; private set; }
 
         public bool IsFillableFlag => isFillable;
         public void SetFillableFlag(bool value) => isFillable = value;
@@ -46,8 +51,67 @@ namespace NexZap.Gameplay.Mechanics
             GridPosition = gridPosition;
             TargetColorId = targetColorId ?? PixelColorIds.Empty;
             materialLibrary = library;
+            emptyCellMaterial = FindEmptyCellMaterial(library);
+            if (emptyCellMaterial == null && bodyRenderer != null)
+            {
+                emptyCellMaterial = bodyRenderer.sharedMaterial;
+            }
             IsFilled = false;
+            CountsTowardTarget = false;
+            isExistingBoardColor = false;
             SetSize(size, depth);
+            RefreshVisual();
+        }
+
+        private static Material FindEmptyCellMaterial(PixelMaterialLibrary library)
+        {
+            if (library == null || library.colors == null)
+            {
+                return null;
+            }
+
+            foreach (var definition in library.colors)
+            {
+                if (definition != null && definition.material != null)
+                {
+                    return definition.material;
+                }
+            }
+
+            return null;
+        }
+
+        public void ClearColor()
+        {
+            TargetColorId = PixelColorIds.Empty;
+            IsFilled = false;
+            isExistingBoardColor = false;
+            isFillable = false;
+            CountsTowardTarget = false;
+            RefreshVisual();
+        }
+
+        public void SetPlacedColor(string colorId)
+        {
+            TargetColorId = colorId ?? PixelColorIds.Empty;
+            IsFilled = !string.IsNullOrEmpty(TargetColorId);
+            isExistingBoardColor = true;
+            isFillable = false;
+            CountsTowardTarget = false;
+            RefreshVisual();
+        }
+
+        public void ShowAsExistingColor()
+        {
+            if (IsEmpty)
+            {
+                return;
+            }
+
+            IsFilled = true;
+            isExistingBoardColor = true;
+            isFillable = false;
+            CountsTowardTarget = true;
             RefreshVisual();
         }
 
@@ -72,6 +136,25 @@ namespace NexZap.Gameplay.Mechanics
 
         private void RefreshVisual()
         {
+            if (IsEmpty)
+            {
+                if (bodyRenderer != null && emptyCellMaterial != null)
+                {
+                    bodyRenderer.sharedMaterial = emptyCellMaterial;
+                }
+
+                ApplyRenderer(bodyRenderer, emptyCellColor,
+                    bodyPropertyBlock ??= new MaterialPropertyBlock(), false, unfilledSmoothness);
+                if (fillRenderer != null)
+                {
+                    fillRenderer.gameObject.SetActive(false);
+                    fillRenderer.transform.localScale = Vector3.one;
+                    fillRenderer.transform.localPosition = Vector3.zero;
+                }
+
+                return;
+            }
+
             var targetColor = materialLibrary != null
                 ? materialLibrary.GetTint(TargetColorId)
                 : Color.gray;
@@ -82,10 +165,13 @@ namespace NexZap.Gameplay.Mechanics
 
                 if (fillRenderer != null)
                 {
-                    fillRenderer.gameObject.SetActive(true);
-                    fillRenderer.transform.localScale = Vector3.one * filledPopScale;
-                    fillRenderer.transform.localPosition = new Vector3(0f, 0f, filledPopZ);
-                    ApplyRenderer(fillRenderer, targetColor, fillPropertyBlock ??= new MaterialPropertyBlock(), true, filledSmoothness);
+                    fillRenderer.gameObject.SetActive(!isExistingBoardColor);
+                    if (!isExistingBoardColor)
+                    {
+                        fillRenderer.transform.localScale = Vector3.one * filledPopScale;
+                        fillRenderer.transform.localPosition = new Vector3(0f, 0f, filledPopZ);
+                        ApplyRenderer(fillRenderer, targetColor, fillPropertyBlock ??= new MaterialPropertyBlock(), true, filledSmoothness);
+                    }
                 }
 
                 return;

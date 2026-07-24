@@ -805,7 +805,7 @@ MonoBehaviour:
       Entry: 1
       Data: cc421a2b5d344ebbb001ab3e606188df
     - Name: 
-      Entry: 6
+      Entry: 1
       Data: 
     - Name: 
       Entry: 6
@@ -901,7 +901,7 @@ MonoBehaviour:
       Entry: 1
       Data: cc421a2b5d344ebbb001ab3e606188df
     - Name: 
-      Entry: 6
+      Entry: 1
       Data: 
     - Name: 
       Entry: 6
@@ -997,7 +997,7 @@ MonoBehaviour:
       Entry: 1
       Data: cc421a2b5d344ebbb001ab3e606188df
     - Name: 
-      Entry: 6
+      Entry: 1
       Data: 
     - Name: 
       Entry: 6
@@ -1093,7 +1093,7 @@ MonoBehaviour:
       Entry: 1
       Data: cc421a2b5d344ebbb001ab3e606188df
     - Name: 
-      Entry: 6
+      Entry: 1
       Data: 
     - Name: 
       Entry: 6
@@ -1189,7 +1189,7 @@ MonoBehaviour:
       Entry: 1
       Data: cc421a2b5d344ebbb001ab3e606188df
     - Name: 
-      Entry: 6
+      Entry: 1
       Data: 
     - Name: 
       Entry: 6
@@ -1285,7 +1285,7 @@ MonoBehaviour:
       Entry: 1
       Data: cc421a2b5d344ebbb001ab3e606188df
     - Name: 
-      Entry: 6
+      Entry: 1
       Data: 
     - Name: 
       Entry: 6
@@ -1381,7 +1381,7 @@ MonoBehaviour:
       Entry: 1
       Data: cc421a2b5d344ebbb001ab3e606188df
     - Name: 
-      Entry: 6
+      Entry: 1
       Data: 
     - Name: 
       Entry: 1
@@ -3118,13 +3118,13 @@ MonoBehaviour:
   idlePixelPrefab: {fileID: 1409224966014894005, guid: e482e9f76bfe68247acbe8af6c60004d, type: 3}
   fillPixelPrefab: {fileID: 1409224966014894005, guid: e482e9f76bfe68247acbe8af6c60004d, type: 3}
   pixelMaterialLibrary: {fileID: 11400000, guid: d95da50ed4d339a4d8b6365f48a38a1e, type: 2}
-  brushColorId: 840175d5a4cc4a03aa97b704d7c5e62d
+  brushColorId: cc421a2b5d344ebbb001ab3e606188df
   eraser: 0
   selectionLines:
   - blocks:
     - legacyColor: 0
       colorId: cc421a2b5d344ebbb001ab3e606188df
-      capacity: 100
+      capacity: 92
     - legacyColor: 0
       colorId: 58abcfe1c72845f19bdd450feceab1a6
       capacity: 52

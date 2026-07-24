@@ -1,6 +1,4 @@
 using System;
-using System.Collections;
-using DG.Tweening;
 using NexZap.Gameplay.Items;
 using UnityEngine;
 
@@ -16,18 +14,21 @@ namespace NexZap.Gameplay.Mechanics
         [SerializeField] private ColorBlockPool blockPool;
         [SerializeField] private Camera gameplayCamera;
 
-        [Header("Config")]
-        [Tooltip("Cứ mỗi quãng đường này block đi được thì fill 1 pixel -> fill bám theo block, không bỏ sót dù block đi nhanh.")]
-        [SerializeField] private float fillStepDistance = 0.5f;
-
         public event Action LevelCompleted;
+        public event Action<int, int> TargetChanged;
 
         private bool isLevelCompleted;
+        private ColorBlock draggedBlock;
+        private SelectionLine draggedFromLine;
+        private Transform dragOriginalParent;
+        private Vector3 dragOriginalLocalPosition;
 
         public PixelBoard PixelBoard => pixelBoard;
         public CircularPath CircularPath => circularPath;
         public BlockQueue BlockQueue => blockQueue;
         public SelectionLineManager SelectionLineManager => selectionLineManager;
+        public int RemainingTarget => pixelBoard != null ? pixelBoard.RemainingTarget : 0;
+        public int TotalTarget => pixelBoard != null ? pixelBoard.TotalTarget : 0;
 
         private void Awake()
         {
@@ -39,27 +40,37 @@ namespace NexZap.Gameplay.Mechanics
 
         private void Update()
         {
-            if (!Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButtonDown(0))
             {
-                return;
+                BeginDrag(Input.mousePosition);
             }
 
-            TryHandleTap(Input.mousePosition);
+            if (draggedBlock != null && Input.GetMouseButton(0))
+            {
+                draggedBlock.transform.position = ScreenToWorld(Input.mousePosition);
+            }
+
+            if (draggedBlock != null && Input.GetMouseButtonUp(0))
+            {
+                EndDrag(Input.mousePosition);
+            }
         }
 
         public void Initialize()
         {
             isLevelCompleted = false;
-            circularPath.BuildAround(pixelBoard);
+            draggedBlock = null;
+            draggedFromLine = null;
             selectionLineManager.RefreshSelection();
+            TargetChanged?.Invoke(RemainingTarget, TotalTarget);
+            CheckLevelCompleted();
         }
 
-        // Dọn trạng thái đang chạy để chuẩn bị nạp lại level (phục vụ kiểm thử/reset).
-        // PixelBoard/SelectionLine/Queue tự dọn block của mình khi build lại; ở đây chỉ cần
-        // dừng coroutine và thu hồi các block đang chạy trên đường (đang là con của controller).
         public void ResetState()
         {
             StopAllCoroutines();
+            draggedBlock = null;
+            draggedFromLine = null;
 
             for (var i = transform.childCount - 1; i >= 0; i--)
             {
@@ -73,186 +84,88 @@ namespace NexZap.Gameplay.Mechanics
             isLevelCompleted = false;
         }
 
-        public bool TrySelectLineBlock(SelectionLine line, ColorBlock block)
+        private void BeginDrag(Vector2 screenPosition)
         {
-            if (line == null || block == null || !block.IsSelectable)
-            {
-                return false;
-            }
-
-            if (!circularPath.CanAcceptBlock || blockQueue.IsFull)
-            {
-                return false;
-            }
-
-            if (!line.TryRemoveBlock(block))
-            {
-                return false;
-            }
-
-            block.PlayTapFeedback();
-            block.transform.SetParent(transform, true);
-            selectionLineManager.RefreshSelection();
-
-            StartCoroutine(TravelAndResolve(block));
-            return true;
-        }
-
-        private void TryHandleTap(Vector2 screenPosition)
-        {
-            if (gameplayCamera == null)
+            if (isLevelCompleted || gameplayCamera == null)
             {
                 return;
             }
 
-            var zDistance = Mathf.Abs(gameplayCamera.transform.position.z);
-            var worldPoint = gameplayCamera.ScreenToWorldPoint(new Vector3(screenPosition.x, screenPosition.y, zDistance));
-            worldPoint.z = 0f;
-            var hit = Physics2D.OverlapPoint(worldPoint);
-
-            if (hit == null)
-            {
-                return;
-            }
-
-            var block = hit.GetComponentInParent<ColorBlock>();
+            var hit = Physics2D.OverlapPoint(ScreenToWorld(screenPosition));
+            var block = hit != null ? hit.GetComponentInParent<ColorBlock>() : null;
             if (block == null || !block.IsSelectable)
             {
                 return;
             }
 
-            // Tap block đang trong hàng đợi -> chạy lại vòng (loop tới khi hết màu).
-            if (blockQueue.Contains(block))
+            SelectionLine sourceLine = null;
+            foreach (var line in selectionLineManager.Lines)
             {
-                TrySelectQueueBlock(block);
-                return;
-            }
-
-            for (var i = 0; i < selectionLineManager.Lines.Count; i++)
-            {
-                var line = selectionLineManager.Lines[i];
                 if (line.Contains(block))
                 {
-                    TrySelectLineBlock(line, block);
+                    sourceLine = line;
                     break;
                 }
             }
-        }
 
-        public bool TrySelectQueueBlock(ColorBlock block)
-        {
-            if (block == null || !circularPath.CanAcceptBlock)
-            {
-                return false;
-            }
-
-            if (!blockQueue.TryRemove(block))
-            {
-                return false;
-            }
-
-            block.PlayTapFeedback();
-            block.transform.SetParent(transform, true);
-
-            StartCoroutine(TravelAndResolve(block));
-            return true;
-        }
-
-        // Block chạy 1 vòng; mỗi lần chạy fill trong phạm vi lớp peel (PixelBoard.fillPeelLayersPerWave), không lan sâu hơn.
-        private IEnumerator TravelAndResolve(ColorBlock block)
-        {
-            var tween = circularPath.SendBlock(block);
-            if (tween == null)
-            {
-                ResolveBlockAfterTravel(block);
-                yield break;
-            }
-
-            pixelBoard.BeginFillWave(block.ColorId);
-
-            var lastPosition = block.transform.position;
-            var movedDistance = 0f;
-            try
-            {
-                while (block != null && block.HasCapacity && tween.IsActive() && !tween.IsComplete())
-                {
-                    var currentPosition = block.transform.position;
-                    movedDistance += Vector3.Distance(currentPosition, lastPosition);
-                    lastPosition = currentPosition;
-
-                    while (movedDistance >= fillStepDistance && block.HasCapacity)
-                    {
-                        if (!TryFillOnePixel(block))
-                        {
-                            movedDistance = Mathf.Min(movedDistance, fillStepDistance);
-                            break;
-                        }
-
-                        movedDistance -= fillStepDistance;
-                    }
-
-                    yield return null;
-                }
-            }
-            finally
-            {
-                pixelBoard.EndFillWave();
-            }
-
-            if (block != null && !block.HasCapacity && tween.IsActive())
-            {
-                tween.Kill();
-                circularPath.ReleaseBlock(block);
-            }
-
-            ResolveBlockAfterTravel(block);
-        }
-
-        private bool TryFillOnePixel(ColorBlock block)
-        {
-            if (block == null || !block.HasCapacity)
-            {
-                return false;
-            }
-
-            // Fill pixel gần vị trí hiện tại của block nhất -> block đi tới đâu fill tới đó.
-            if (!pixelBoard.TryFillNearest(block.ColorId, block.transform.position))
-            {
-                return false;
-            }
-
-            block.ConsumeCapacity(1);
-            CheckLevelCompleted();
-            return true;
-        }
-
-        private void ResolveBlockAfterTravel(ColorBlock block)
-        {
-            if (block == null)
+            if (sourceLine == null)
             {
                 return;
             }
 
-            // Hết màu -> trả về pool (tắt object, không Destroy).
-            if (!block.HasCapacity)
+            draggedBlock = block;
+            draggedFromLine = sourceLine;
+            dragOriginalParent = block.transform.parent;
+            dragOriginalLocalPosition = block.transform.localPosition;
+            block.PlayTapFeedback();
+            block.SetState(ColorBlockState.Filling);
+            block.transform.SetParent(transform, true);
+        }
+
+        private void EndDrag(Vector2 screenPosition)
+        {
+            var block = draggedBlock;
+            var sourceLine = draggedFromLine;
+            draggedBlock = null;
+            draggedFromLine = null;
+
+            if (block == null || sourceLine == null)
             {
+                return;
+            }
+
+            var worldPosition = ScreenToWorld(screenPosition);
+            if (pixelBoard.TryResolveDrop(worldPosition, block.ColorId, out var removedCount))
+            {
+                sourceLine.TryRemoveBlock(block);
+                pixelBoard.TryGetDropWorldPosition(worldPosition, out var snappedPosition);
+                block.transform.position = snappedPosition;
+                block.ConsumeCapacity(removedCount);
                 block.Despawn();
+                selectionLineManager.RefreshSelection();
+                TargetChanged?.Invoke(RemainingTarget, TotalTarget);
                 CheckLevelCompleted();
                 return;
             }
 
-            // Còn màu -> vào hàng đợi, chờ người chơi tap để chạy lại vòng.
-            if (!blockQueue.TryEnqueue(block))
-            {
-                Debug.LogWarning("Queue is full. Block could not be enqueued.");
-            }
+            block.transform.SetParent(dragOriginalParent, false);
+            block.transform.localPosition = dragOriginalLocalPosition;
+            block.SetState(ColorBlockState.Idle);
+            selectionLineManager.RefreshSelection();
+        }
 
-            CheckLevelCompleted();
+        private Vector3 ScreenToWorld(Vector2 screenPosition)
+        {
+            var zDistance = Mathf.Abs(gameplayCamera.transform.position.z);
+            var point = gameplayCamera.ScreenToWorldPoint(
+                new Vector3(screenPosition.x, screenPosition.y, zDistance));
+            point.z = 0f;
+            return point;
         }
 
         private void CheckLevelCompleted()
         {
-            if (isLevelCompleted || !pixelBoard.IsComplete)
+            if (isLevelCompleted || pixelBoard == null || !pixelBoard.IsTargetComplete)
             {
                 return;
             }
