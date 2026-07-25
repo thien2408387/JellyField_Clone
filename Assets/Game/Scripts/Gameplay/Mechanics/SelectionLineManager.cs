@@ -36,15 +36,16 @@ namespace NexZap.Gameplay.Mechanics
                 var line = Instantiate(linePrefab, linesRoot);
                 line.Initialize(i, topY - i * lineSpacing);
 
-                var configs = new List<(string colorId, int capacity)>();
+                var configs = new List<(string[] colorIds, int capacity)>();
                 var lineConfig = levelData.selectionLines[i];
                 if (lineConfig.blocks != null)
                 {
                     foreach (var block in lineConfig.blocks)
                     {
-                        if (!string.IsNullOrEmpty(block.colorId))
+                        var ids = block.GetColorIds();
+                        if (ids != null && ids.Length > 0 && !string.IsNullOrEmpty(ids[0]))
                         {
-                            configs.Add((block.colorId, block.capacity));
+                            configs.Add((ids, block.capacity));
                         }
                     }
                 }

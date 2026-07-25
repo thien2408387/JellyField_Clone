@@ -45,7 +45,7 @@ namespace NexZap.Gameplay.Mechanics
         }
 
         public void Populate(
-            IReadOnlyList<(string colorId, int capacity)> blockConfigs,
+            IReadOnlyList<(string[] colorIds, int capacity)> blockConfigs,
             ColorBlockPool pool,
             PixelMaterialLibrary materialLibrary)
         {
@@ -58,7 +58,7 @@ namespace NexZap.Gameplay.Mechanics
                 var config = blockConfigs[i];
                 var block = pool.Get();
                 block.transform.SetParent(blocksRoot, false);
-                block.Initialize(config.colorId, config.capacity, materialLibrary);
+                block.Initialize(config.colorIds, config.capacity, materialLibrary);
                 slots[i] = block;
             }
 

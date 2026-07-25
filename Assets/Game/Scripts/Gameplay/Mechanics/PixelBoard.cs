@@ -88,10 +88,10 @@ namespace NexZap.Gameplay.Mechanics
             RefreshFillableFlags();
         }
 
-        public bool TryResolveDrop(Vector3 worldPosition, string colorId, out int removedCount)
+        public bool TryResolveDrop(Vector3 worldPosition, string[] colorIds, out int removedCount)
         {
             removedCount = 0;
-            if (string.IsNullOrEmpty(colorId))
+            if (colorIds == null || colorIds.Length == 0 || string.IsNullOrEmpty(colorIds[0]))
             {
                 return false;
             }
@@ -102,54 +102,94 @@ namespace NexZap.Gameplay.Mechanics
                 return false;
             }
 
-            var matched = new HashSet<PixelCell>();
-            var queue = new Queue<PixelCell>();
-            foreach (var offset in Neighbors)
-            {
-                if (cellLookup.TryGetValue(dropPosition + offset, out var neighbor) &&
-                    neighbor.TargetColorId == colorId)
-                {
-                    matched.Add(neighbor);
-                    queue.Enqueue(neighbor);
-                }
-            }
+            var matchedCells = new HashSet<PixelCell>();
+            var matchedColors = new HashSet<string>();
 
-            if (queue.Count == 0)
+            // Collect matches for all colors in the block
+            foreach (var colorId in colorIds)
             {
-                dropCell.SetPlacedColor(colorId);
-                return true;
-            }
-
-            while (queue.Count > 0)
-            {
-                var current = queue.Dequeue();
+                var matchedForColor = new HashSet<PixelCell>();
+                var queue = new Queue<PixelCell>();
+                
                 foreach (var offset in Neighbors)
                 {
-                    if (!cellLookup.TryGetValue(current.GridPosition + offset, out var neighbor) ||
-                        neighbor.TargetColorId != colorId || !matched.Add(neighbor))
+                    if (cellLookup.TryGetValue(dropPosition + offset, out var neighbor) &&
+                        neighbor.TargetColorId == colorId)
                     {
-                        continue;
+                        matchedForColor.Add(neighbor);
+                        queue.Enqueue(neighbor);
                     }
+                }
 
-                    queue.Enqueue(neighbor);
+                if (queue.Count > 0)
+                {
+                    matchedColors.Add(colorId);
+                    
+                    while (queue.Count > 0)
+                    {
+                        var current = queue.Dequeue();
+                        foreach (var offset in Neighbors)
+                        {
+                            if (!cellLookup.TryGetValue(current.GridPosition + offset, out var neighbor) ||
+                                neighbor.TargetColorId != colorId || !matchedForColor.Add(neighbor))
+                            {
+                                continue;
+                            }
+
+                            queue.Enqueue(neighbor);
+                        }
+                    }
+                    
+                    foreach (var m in matchedForColor) matchedCells.Add(m);
                 }
             }
 
+            // Logic for dropping
+            if (matchedColors.Count == 0)
+            {
+                // No matches
+                if (colorIds.Length == 1)
+                {
+                    // Single color: just place it
+                    dropCell.SetPlacedColor(colorIds[0]);
+                    return true;
+                }
+                else
+                {
+                    // Dual color: if neither matches, it bounces back (cannot place 2 colors in 1 cell)
+                    return false;
+                }
+            }
+
+            // Apply removals
             var removedTargetCount = 0;
-            foreach (var cell in matched)
+            foreach (var cell in matchedCells)
             {
                 if (cell.CountsTowardTarget)
                 {
                     removedTargetCount++;
                 }
-
+                
+                var cellColor = cell.TargetColorId;
                 cell.ClearColor();
+
+                if (!string.IsNullOrEmpty(cellColor))
+                {
+                    remainingTargetsByColor.TryGetValue(cellColor, out var remainingForColor);
+                    remainingTargetsByColor[cellColor] = Mathf.Max(0, remainingForColor - 1);
+                }
             }
 
-            removedCount = matched.Count;
+            removedCount = matchedCells.Count;
             RemainingTarget = Mathf.Max(0, RemainingTarget - removedTargetCount);
-            remainingTargetsByColor.TryGetValue(colorId, out var remainingForColor);
-            remainingTargetsByColor[colorId] = Mathf.Max(0, remainingForColor - removedTargetCount);
+
+            // Handle remainder for dual color block
+            if (colorIds.Length > 1 && matchedColors.Count == 1)
+            {
+                var remainingColor = matchedColors.Contains(colorIds[0]) ? colorIds[1] : colorIds[0];
+                dropCell.SetPlacedColor(remainingColor);
+            }
+
             return true;
         }
 

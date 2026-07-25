@@ -10,6 +10,12 @@ using UnityEditor;
 
 namespace NexZap.Data
 {
+    public enum ColorBlockType
+    {
+        SingleColor,
+        DualColor
+    }
+
     [Serializable]
     public class ColorBlockData
     {
@@ -19,17 +25,32 @@ namespace NexZap.Data
         private BlockColor legacyColor;
 #endif
 
-        [HorizontalGroup(160f), HideLabel]
+        [HorizontalGroup("Type", 100f), HideLabel]
+        public ColorBlockType blockType = ColorBlockType.SingleColor;
+
+        [HorizontalGroup("Colors"), HideLabel]
 #if UNITY_EDITOR
         [CustomValueDrawer("DrawColorIdValue")]
 #endif
         public string colorId = PixelColorIds.Empty;
+
+        [HorizontalGroup("Colors"), HideLabel]
+        [ShowIf("blockType", ColorBlockType.DualColor)]
+#if UNITY_EDITOR
+        [CustomValueDrawer("DrawColorIdValue2")]
+#endif
+        public string secondaryColorId = PixelColorIds.Empty;
 
         [HorizontalGroup, LabelText("Sức chứa"), LabelWidth(60f), MinValue(1)]
         public int capacity = GameplayConstants.DefaultBlockCapacity;
 
 #if UNITY_EDITOR
         private static string DrawColorIdValue(string value, GUIContent label)
+        {
+            return PixelColorIdFieldDrawer.Draw(value, label);
+        }
+
+        private static string DrawColorIdValue2(string value, GUIContent label)
         {
             return PixelColorIdFieldDrawer.Draw(value, label);
         }
@@ -48,6 +69,15 @@ namespace NexZap.Data
             }
         }
 #endif
+
+        public string[] GetColorIds()
+        {
+            if (blockType == ColorBlockType.DualColor && !string.IsNullOrEmpty(secondaryColorId))
+            {
+                return new[] { colorId, secondaryColorId };
+            }
+            return new[] { colorId };
+        }
     }
 
     [Serializable]
@@ -105,12 +135,26 @@ namespace NexZap.Data
 #endif
 
         [BoxGroup("2) Vẽ Pixel")]
+        [HorizontalGroup("2) Vẽ Pixel/BrushType", 100f), HideLabel]
+        public ColorBlockType brushType = ColorBlockType.SingleColor;
+
+        [BoxGroup("2) Vẽ Pixel")]
         [PropertySpace(8)]
 #if UNITY_EDITOR
         [CustomValueDrawer("DrawBrushColorId")]
 #endif
         [LabelText("Màu cọ")]
+        [HorizontalGroup("2) Vẽ Pixel/Colors"), HideLabel]
         public string brushColorId = PixelColorIds.Empty;
+
+        [BoxGroup("2) Vẽ Pixel")]
+        [ShowIf("brushType", ColorBlockType.DualColor)]
+#if UNITY_EDITOR
+        [CustomValueDrawer("DrawBrushColorId2")]
+#endif
+        [LabelText("Màu phụ")]
+        [HorizontalGroup("2) Vẽ Pixel/Colors"), HideLabel]
+        public string secondaryBrushColorId = PixelColorIds.Empty;
 
         [BoxGroup("2) Vẽ Pixel")]
         [ToggleLeft, LabelText("Cục tẩy (Eraser)")]
@@ -158,16 +202,21 @@ namespace NexZap.Data
             {
                 for (var y = 0; y < grid.GetLength(1); y++)
                 {
-                    var colorId = grid[x, y];
-                    if (string.IsNullOrEmpty(colorId))
+                    var cellValue = grid[x, y];
+                    if (string.IsNullOrEmpty(cellValue))
                     {
                         continue;
                     }
 
-                    total++;
-                    var label = library != null ? library.GetDisplayName(colorId) : colorId;
-                    byColor.TryGetValue(label, out var n);
-                    byColor[label] = n + 1;
+                    var ids = cellValue.Split('/');
+                    foreach (var colorId in ids)
+                    {
+                        if (string.IsNullOrEmpty(colorId)) continue;
+                        total++;
+                        var label = library != null ? library.GetDisplayName(colorId) : colorId;
+                        byColor.TryGetValue(label, out var n);
+                        byColor[label] = n + 1;
+                    }
                 }
             }
 
@@ -187,14 +236,19 @@ namespace NexZap.Data
                 {
                     for (var y = 0; y < grid.GetLength(1); y++)
                     {
-                        var colorId = grid[x, y];
-                        if (string.IsNullOrEmpty(colorId))
+                        var cellValue = grid[x, y];
+                        if (string.IsNullOrEmpty(cellValue))
                         {
                             continue;
                         }
 
-                        idCounts.TryGetValue(colorId, out var n);
-                        idCounts[colorId] = n + 1;
+                        var ids = cellValue.Split('/');
+                        foreach (var colorId in ids)
+                        {
+                            if (string.IsNullOrEmpty(colorId)) continue;
+                            idCounts.TryGetValue(colorId, out var n);
+                            idCounts[colorId] = n + 1;
+                        }
                     }
                 }
 
@@ -209,6 +263,11 @@ namespace NexZap.Data
         }
 
         private string DrawBrushColorId(string value, GUIContent label)
+        {
+            return PixelColorIdFieldDrawer.Draw(value, label);
+        }
+
+        private string DrawBrushColorId2(string value, GUIContent label)
         {
             return PixelColorIdFieldDrawer.Draw(value, label);
         }
@@ -438,7 +497,13 @@ namespace NexZap.Data
                     PushUndo();
                 }
 
-                value = (eraser || e.button == 1) ? PixelColorIds.Empty : brushColorId;
+                var paintValue = brushColorId;
+                if (brushType == ColorBlockType.DualColor && !string.IsNullOrEmpty(secondaryBrushColorId))
+                {
+                    paintValue = $"{brushColorId}/{secondaryBrushColorId}";
+                }
+
+                value = (eraser || e.button == 1) ? PixelColorIds.Empty : paintValue;
                 GUI.changed = true;
                 MarkDirty();
                 e.Use();
@@ -446,10 +511,29 @@ namespace NexZap.Data
 
             var inner = new Rect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
             var library = ResolvePixelMaterialLibrary();
-            var color = string.IsNullOrEmpty(value)
-                ? new Color(0.18f, 0.18f, 0.2f)
-                : library != null ? library.GetTint(value) : Color.gray;
-            EditorGUI.DrawRect(inner, color);
+
+            if (string.IsNullOrEmpty(value))
+            {
+                EditorGUI.DrawRect(inner, new Color(0.18f, 0.18f, 0.2f));
+            }
+            else if (value.Contains('/'))
+            {
+                var parts = value.Split('/');
+                var c1 = library != null ? library.GetTint(parts[0]) : Color.gray;
+                var c2 = parts.Length > 1 && library != null ? library.GetTint(parts[1]) : Color.gray;
+
+                var topHalf = new Rect(inner.x, inner.y, inner.width, inner.height / 2f);
+                var bottomHalf = new Rect(inner.x, inner.y + inner.height / 2f, inner.width, inner.height / 2f);
+
+                EditorGUI.DrawRect(topHalf, c1);
+                EditorGUI.DrawRect(bottomHalf, c2);
+            }
+            else
+            {
+                var color = library != null ? library.GetTint(value) : Color.gray;
+                EditorGUI.DrawRect(inner, color);
+            }
+
             return value;
         }
 #endif

@@ -32,6 +32,8 @@ namespace NexZap.Gameplay.Items
 
         private MeshRenderer cubeRenderer;
         private MeshRenderer cubeHighlightRenderer;
+        private MeshRenderer cubeRenderer2;
+        private MeshRenderer cubeHighlightRenderer2;
         [SerializeField] private BoxCollider bodyCollider3D;
         private MaterialPropertyBlock cubePropertyBlock;
         private MaterialPropertyBlock highlightPropertyBlock;
@@ -50,11 +52,12 @@ namespace NexZap.Gameplay.Items
         private Tween pulseTween;
         private static Material sharedSpriteMaterial;
         private Color baseColor;
+        private Color secondaryColor;
         private bool isSelectable;
         private bool isDimmed;
         private ColorBlockPool pool;
 
-        public string ColorId { get; private set; }
+        public string[] ColorIds { get; private set; }
         public int RemainingCapacity { get; private set; }
         public ColorBlockState State { get; private set; } = ColorBlockState.Idle;
 
@@ -93,6 +96,13 @@ namespace NexZap.Gameplay.Items
                 cubeRenderer = CreateCubeRenderer("CubeBody", jellyRoot, cubeSize, Vector3.zero);
             }
 
+            var existingBody2 = jellyRoot.Find("CubeBody2");
+            cubeRenderer2 = existingBody2 != null ? existingBody2.GetComponent<MeshRenderer>() : null;
+            if (cubeRenderer2 == null)
+            {
+                cubeRenderer2 = CreateCubeRenderer("CubeBody2", jellyRoot, cubeSize, Vector3.zero);
+            }
+
             var existingHighlight = jellyRoot.Find("CubeHighlight");
             cubeHighlightRenderer = existingHighlight != null
                 ? existingHighlight.GetComponent<MeshRenderer>()
@@ -105,6 +115,20 @@ namespace NexZap.Gameplay.Items
                     cubeSize.z * 0.9f);
                 cubeHighlightRenderer = CreateCubeRenderer(
                     "CubeHighlight", jellyRoot, highlightSize, new Vector3(0f, 0f, cubeSize.z * 0.12f));
+            }
+
+            var existingHighlight2 = jellyRoot.Find("CubeHighlight2");
+            cubeHighlightRenderer2 = existingHighlight2 != null
+                ? existingHighlight2.GetComponent<MeshRenderer>()
+                : null;
+            if (cubeHighlightRenderer2 == null)
+            {
+                var highlightSize = new Vector3(
+                    cubeSize.x * highlightScale,
+                    cubeSize.y * highlightScale,
+                    cubeSize.z * 0.9f);
+                cubeHighlightRenderer2 = CreateCubeRenderer(
+                    "CubeHighlight2", jellyRoot, highlightSize, new Vector3(0f, 0f, cubeSize.z * 0.12f));
             }
 
             if (spriteRenderer != null)
@@ -211,27 +235,55 @@ namespace NexZap.Gameplay.Items
             pool = owner;
         }
 
-        public void Initialize(string colorId, int capacity, PixelMaterialLibrary materialLibrary)
+        public void Initialize(string[] colorIds, int capacity, PixelMaterialLibrary materialLibrary)
         {
             EnsureValidSpriteMaterials();
             jellyController?.ResetVisual();
-            ColorId = colorId ?? PixelColorIds.Empty;
+            ColorIds = colorIds ?? new[] { PixelColorIds.Empty };
             RemainingCapacity = capacity;
             State = ColorBlockState.Idle;
-            baseColor = materialLibrary != null
-                ? materialLibrary.GetTint(ColorId)
-                : Color.gray;
+            
+            var primaryId = ColorIds[0];
+            var secondaryId = ColorIds.Length > 1 ? ColorIds[1] : primaryId;
 
-            var colorMaterial = materialLibrary != null ? materialLibrary.GetMaterial(ColorId) : null;
-            var jellyMaterial = JellyMaterialUtility.GetOrCreate(colorMaterial, jellySmoothness);
-            if (cubeRenderer != null && jellyMaterial != null)
+            baseColor = materialLibrary != null ? materialLibrary.GetTint(primaryId) : Color.gray;
+            secondaryColor = materialLibrary != null ? materialLibrary.GetTint(secondaryId) : Color.gray;
+
+            var primaryMaterial = materialLibrary != null ? materialLibrary.GetMaterial(primaryId) : null;
+            var primaryJellyMat = JellyMaterialUtility.GetOrCreate(primaryMaterial, jellySmoothness);
+            if (cubeRenderer != null && primaryJellyMat != null) cubeRenderer.sharedMaterial = primaryJellyMat;
+            if (cubeHighlightRenderer != null && primaryJellyMat != null) cubeHighlightRenderer.sharedMaterial = primaryJellyMat;
+
+            if (ColorIds.Length > 1)
             {
-                cubeRenderer.sharedMaterial = jellyMaterial;
+                var secondaryMaterial = materialLibrary != null ? materialLibrary.GetMaterial(secondaryId) : null;
+                var secondaryJellyMat = JellyMaterialUtility.GetOrCreate(secondaryMaterial, jellySmoothness);
+                if (cubeRenderer2 != null && secondaryJellyMat != null) cubeRenderer2.sharedMaterial = secondaryJellyMat;
+                if (cubeHighlightRenderer2 != null && secondaryJellyMat != null) cubeHighlightRenderer2.sharedMaterial = secondaryJellyMat;
+
+                var halfSize = new Vector3(cubeSize.x, cubeSize.y / 2f, cubeSize.z);
+                var bottomPos = new Vector3(0f, -cubeSize.y / 4f, 0f);
+                var topPos = new Vector3(0f, cubeSize.y / 4f, 0f);
+
+                if (cubeRenderer != null) { cubeRenderer.transform.localScale = halfSize; cubeRenderer.transform.localPosition = bottomPos; }
+                if (cubeRenderer2 != null) { cubeRenderer2.transform.localScale = halfSize; cubeRenderer2.transform.localPosition = topPos; cubeRenderer2.gameObject.SetActive(true); }
+
+                var hSize = new Vector3(cubeSize.x * highlightScale, cubeSize.y * highlightScale, cubeSize.z * 0.9f);
+                var hHalfSize = new Vector3(hSize.x, hSize.y / 2f, hSize.z);
+                var hBottomPos = new Vector3(0f, -hSize.y / 4f, cubeSize.z * 0.12f);
+                var hTopPos = new Vector3(0f, hSize.y / 4f, cubeSize.z * 0.12f);
+                
+                if (cubeHighlightRenderer != null) { cubeHighlightRenderer.transform.localScale = hHalfSize; cubeHighlightRenderer.transform.localPosition = hBottomPos; }
+                if (cubeHighlightRenderer2 != null) { cubeHighlightRenderer2.transform.localScale = hHalfSize; cubeHighlightRenderer2.transform.localPosition = hTopPos; cubeHighlightRenderer2.gameObject.SetActive(true); }
             }
-
-            if (cubeHighlightRenderer != null && jellyMaterial != null)
+            else
             {
-                cubeHighlightRenderer.sharedMaterial = jellyMaterial;
+                if (cubeRenderer != null) { cubeRenderer.transform.localScale = cubeSize; cubeRenderer.transform.localPosition = Vector3.zero; }
+                if (cubeRenderer2 != null) { cubeRenderer2.gameObject.SetActive(false); }
+                
+                var hSize = new Vector3(cubeSize.x * highlightScale, cubeSize.y * highlightScale, cubeSize.z * 0.9f);
+                if (cubeHighlightRenderer != null) { cubeHighlightRenderer.transform.localScale = hSize; cubeHighlightRenderer.transform.localPosition = new Vector3(0f, 0f, cubeSize.z * 0.12f); }
+                if (cubeHighlightRenderer2 != null) { cubeHighlightRenderer2.gameObject.SetActive(false); }
             }
 
             isSelectable = false;
@@ -310,6 +362,11 @@ namespace NexZap.Gameplay.Items
                 if (cubeHighlightRenderer != null)
                 {
                     cubeHighlightRenderer.enabled = selectable;
+                }
+
+                if (cubeHighlightRenderer2 != null && ColorIds != null && ColorIds.Length > 1)
+                {
+                    cubeHighlightRenderer2.enabled = selectable;
                 }
             }
 
@@ -464,6 +521,11 @@ namespace NexZap.Gameplay.Items
                 cubeHighlightRenderer.enabled = false;
             }
 
+            if (cubeHighlightRenderer2 != null)
+            {
+                cubeHighlightRenderer2.enabled = false;
+            }
+
             if (spriteRenderer != null)
             {
                 var color = spriteRenderer.color;
@@ -494,6 +556,15 @@ namespace NexZap.Gameplay.Items
                 cubeHighlightRenderer,
                 cubeHighlightColor,
                 highlightPropertyBlock ??= new MaterialPropertyBlock());
+
+            if (ColorIds != null && ColorIds.Length > 1)
+            {
+                var cubeHighlightColor2 = Color.Lerp(secondaryColor, Color.white, 0.45f);
+                ApplyCubeColor(
+                    cubeHighlightRenderer2,
+                    cubeHighlightColor2,
+                    highlightPropertyBlock);
+            }
         }
 
         private static void ApplyCubeColor(
@@ -582,6 +653,13 @@ namespace NexZap.Gameplay.Items
             var cubeColor = Color.Lerp(baseColor, Color.black, (1f - alpha) * 0.55f);
             cubeColor.a = 1f;
             ApplyCubeColor(cubeRenderer, cubeColor, cubePropertyBlock ??= new MaterialPropertyBlock());
+
+            if (ColorIds != null && ColorIds.Length > 1)
+            {
+                var cubeColor2 = Color.Lerp(secondaryColor, Color.black, (1f - alpha) * 0.55f);
+                cubeColor2.a = 1f;
+                ApplyCubeColor(cubeRenderer2, cubeColor2, cubePropertyBlock);
+            }
         }
 
         private void OnDestroy()

@@ -156,7 +156,7 @@ namespace NexZap.Gameplay.Mechanics
             }
 
             var worldPosition = ScreenToWorld(screenPosition);
-            if (pixelBoard.TryResolveDrop(worldPosition, block.ColorId, out var removedCount))
+            if (pixelBoard.TryResolveDrop(worldPosition, block.ColorIds, out var removedCount))
             {
                 sourceLine.TryRemoveBlock(block);
                 pixelBoard.TryGetDropWorldPosition(worldPosition, out var snappedPosition);

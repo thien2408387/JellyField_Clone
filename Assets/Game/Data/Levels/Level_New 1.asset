@@ -38,7 +38,7 @@ MonoBehaviour:
       Data: 04d6908279094439a21b176ae7d252eb
     - Name: 
       Entry: 1
-      Data: da61cbb4338840449e376dbf5da7f57b
+      Data: a2b5ce119aca49db8d8f8a9ad298a7fb
     - Name: 
       Entry: 6
       Data: 
@@ -73,19 +73,27 @@ MonoBehaviour:
   idlePixelPrefab: {fileID: 1409224966014894005, guid: e482e9f76bfe68247acbe8af6c60004d, type: 3}
   fillPixelPrefab: {fileID: 3512688344168071525, guid: 97b9d1e225d6e79419415d5d2ff20147, type: 3}
   pixelMaterialLibrary: {fileID: 11400000, guid: d95da50ed4d339a4d8b6365f48a38a1e, type: 2}
-  brushColorId: 58abcfe1c72845f19bdd450feceab1a6
+  brushColorId: a2b5ce119aca49db8d8f8a9ad298a7fb
   eraser: 0
   selectionLines:
   - blocks:
     - legacyColor: 0
+      blockType: 1
       colorId: da61cbb4338840449e376dbf5da7f57b
-      capacity: 3
-    - legacyColor: 0
-      colorId: 04d6908279094439a21b176ae7d252eb
-      capacity: 3
-    - legacyColor: 0
-      colorId: 58abcfe1c72845f19bdd450feceab1a6
+      secondaryColorId: 58abcfe1c72845f19bdd450feceab1a6
       capacity: 1
     - legacyColor: 0
+      blockType: 0
+      colorId: 04d6908279094439a21b176ae7d252eb
+      secondaryColorId: 
+      capacity: 1
+    - legacyColor: 0
+      blockType: 1
+      colorId: a2b5ce119aca49db8d8f8a9ad298a7fb
+      secondaryColorId: f7ee2784bb6b407da9ff864309c94b34
+      capacity: 1
+    - legacyColor: 0
+      blockType: 0
       colorId: f7ee2784bb6b407da9ff864309c94b34
+      secondaryColorId: 
       capacity: 1
