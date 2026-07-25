@@ -329,6 +329,32 @@ namespace NexZap.Gameplay.Items
             ApplyAlpha(dimmed ? dimmedAlpha : 1f);
         }
 
+        /// <summary>
+        /// Controls whether this pre-created block is currently exposed by the
+        /// sequential selection queue. Revealing a hidden block replays its spawn.
+        /// </summary>
+        public void SetSequenceVisible(bool visible)
+        {
+            if (!visible)
+            {
+                SetSelectable(false);
+                SetDimmed(false);
+                gameObject.SetActive(false);
+                return;
+            }
+
+            var wasHidden = !gameObject.activeSelf;
+            gameObject.SetActive(true);
+            SetDimmed(false);
+            SetSelectable(true);
+
+            if (wasHidden)
+            {
+                ResetJellyVisual();
+                PlaySpawn();
+            }
+        }
+
         public void PlayTapFeedback()
         {
             StopPulse();

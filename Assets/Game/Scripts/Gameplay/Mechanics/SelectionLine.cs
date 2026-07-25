@@ -12,11 +12,11 @@ namespace NexZap.Gameplay.Mechanics
         [SerializeField] private float blockSpacing = 0.65f;
         [SerializeField] private float lineYOffset;
 
-        // Mỗi block giữ nguyên cột (slot) của nó. Khi lấy block ra, slot để trống (null)
-        // chứ KHÔNG dồn các block còn lại -> cột thẳng hàng dọc giữa các line.
+        // Các slot giữ thứ tự đã khai báo trong Odin. Manager chỉ reveal slot đầu
+        // tiên còn lại, vì vậy toàn bộ sequence có thể được tạo trước nhưng chỉ có
+        // một block xuất hiện tại mỗi thời điểm.
         private ColorBlock[] slots = Array.Empty<ColorBlock>();
         private ColorBlockPool blockPool;
-        private int arrangeColumns;
 
         public int Index { get; private set; }
         public int SlotCount => slots.Length;
@@ -62,7 +62,6 @@ namespace NexZap.Gameplay.Mechanics
                 slots[i] = block;
             }
 
-            arrangeColumns = slots.Length;
             ArrangeBlocks();
         }
 
@@ -104,10 +103,8 @@ namespace NexZap.Gameplay.Mechanics
             return false;
         }
 
-        // Canh các line theo cùng số cột để các cột thẳng hàng dọc giữa các line.
         public void SetArrangeColumns(int columns)
         {
-            arrangeColumns = Mathf.Max(columns, slots.Length);
             ArrangeBlocks();
         }
 
@@ -135,14 +132,13 @@ namespace NexZap.Gameplay.Mechanics
 
         private void ArrangeBlocks()
         {
-            var columns = Mathf.Max(arrangeColumns, 1);
-            var startX = -(columns - 1) * blockSpacing * 0.5f;
-
             for (var i = 0; i < slots.Length; i++)
             {
                 if (slots[i] != null)
                 {
-                    slots[i].transform.localPosition = new Vector3(startX + i * blockSpacing, 0f, 0f);
+                    // Every queued block shares the same presentation slot. Hidden
+                    // blocks therefore appear exactly where the previous one was.
+                    slots[i].transform.localPosition = Vector3.zero;
                 }
             }
         }

@@ -58,33 +58,26 @@ namespace NexZap.Gameplay.Mechanics
         }
 
         /// <summary>
-        /// Thứ tự chọn theo cột (giống pixel): trong mỗi cột, chỉ block trên cùng còn lại mới
-        /// được phép chọn. Lấy block đó đi thì block ngay dưới nó (cùng cột) mở khóa, không cần
-        /// phải hết cả hàng đầu mới chọn được hàng dưới.
+        /// Reveal đúng một block theo thứ tự line rồi tới thứ tự block đã cấu hình
+        /// trong Odin. Block tiếp theo chỉ xuất hiện sau khi block hiện tại bị xóa
+        /// khỏi line bởi một lần đặt thành công.
         /// </summary>
         public void RefreshSelection()
         {
-            var maxColumns = 0;
+            var revealedNextBlock = false;
             foreach (var line in lines)
             {
-                maxColumns = Mathf.Max(maxColumns, line.SlotCount);
-            }
-
-            for (var column = 0; column < maxColumns; column++)
-            {
-                var topFound = false;
-                for (var i = 0; i < lines.Count; i++)
+                for (var slot = 0; slot < line.SlotCount; slot++)
                 {
-                    var block = lines[i].GetSlot(column);
+                    var block = line.GetSlot(slot);
                     if (block == null)
                     {
                         continue;
                     }
 
-                    var selectable = !topFound;
-                    block.SetSelectable(selectable);
-                    block.SetDimmed(!selectable);
-                    topFound = true;
+                    var shouldReveal = !revealedNextBlock;
+                    block.SetSequenceVisible(shouldReveal);
+                    revealedNextBlock = true;
                 }
             }
         }
