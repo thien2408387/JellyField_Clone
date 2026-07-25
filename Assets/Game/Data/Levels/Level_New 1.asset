@@ -68,24 +68,24 @@ MonoBehaviour:
       Data: 
   width: 3
   height: 3
-  spacing: 0.5
+  spacing: 1.1
   pixelScale: {x: 1, y: 1}
   idlePixelPrefab: {fileID: 0}
   fillPixelPrefab: {fileID: 0}
   pixelMaterialLibrary: {fileID: 11400000, guid: d95da50ed4d339a4d8b6365f48a38a1e, type: 2}
-  brushColorId: da61cbb4338840449e376dbf5da7f57b
+  brushColorId: 58abcfe1c72845f19bdd450feceab1a6
   eraser: 0
   selectionLines:
   - blocks:
     - legacyColor: 0
-      colorId: da61cbb4338840449e376dbf5da7f57b
+      colorId: 
       capacity: 3
     - legacyColor: 0
-      colorId: 04d6908279094439a21b176ae7d252eb
+      colorId: 
       capacity: 3
     - legacyColor: 0
-      colorId: 58abcfe1c72845f19bdd450feceab1a6
+      colorId: 
       capacity: 1
     - legacyColor: 0
-      colorId: f7ee2784bb6b407da9ff864309c94b34
+      colorId: 
       capacity: 1

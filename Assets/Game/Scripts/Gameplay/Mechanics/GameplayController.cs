@@ -14,6 +14,9 @@ namespace NexZap.Gameplay.Mechanics
         [SerializeField] private ColorBlockPool blockPool;
         [SerializeField] private Camera gameplayCamera;
 
+        [Header("3D Drag")]
+        [SerializeField] private float dragPlaneZ = -0.3f;
+
         public event Action LevelCompleted;
         public event Action<int, int> TargetChanged;
 
@@ -47,7 +50,9 @@ namespace NexZap.Gameplay.Mechanics
 
             if (draggedBlock != null && Input.GetMouseButton(0))
             {
-                draggedBlock.transform.position = ScreenToWorld(Input.mousePosition);
+                var dragPosition = ScreenToWorld(Input.mousePosition);
+                draggedBlock.transform.position = dragPosition;
+                draggedBlock.UpdateDragJiggle(dragPosition, Time.deltaTime);
             }
 
             if (draggedBlock != null && Input.GetMouseButtonUp(0))
@@ -91,8 +96,8 @@ namespace NexZap.Gameplay.Mechanics
                 return;
             }
 
-            var hit = Physics2D.OverlapPoint(ScreenToWorld(screenPosition));
-            var block = hit != null ? hit.GetComponentInParent<ColorBlock>() : null;
+            var ray = gameplayCamera.ScreenPointToRay(screenPosition);
+            var block = FindColorBlock(ray);
             if (block == null || !block.IsSelectable)
             {
                 return;
@@ -118,8 +123,24 @@ namespace NexZap.Gameplay.Mechanics
             dragOriginalParent = block.transform.parent;
             dragOriginalLocalPosition = block.transform.localPosition;
             block.PlayTapFeedback();
+            block.BeginDragJiggle(ScreenToWorld(screenPosition));
             block.SetState(ColorBlockState.Filling);
             block.transform.SetParent(transform, true);
+        }
+
+        private static ColorBlock FindColorBlock(Ray ray)
+        {
+            var hits = Physics.RaycastAll(ray);
+            foreach (var hit in hits)
+            {
+                var block = hit.collider.GetComponentInParent<ColorBlock>();
+                if (block != null)
+                {
+                    return block;
+                }
+            }
+
+            return null;
         }
 
         private void EndDrag(Vector2 screenPosition)
@@ -139,7 +160,9 @@ namespace NexZap.Gameplay.Mechanics
             {
                 sourceLine.TryRemoveBlock(block);
                 pixelBoard.TryGetDropWorldPosition(worldPosition, out var snappedPosition);
+                snappedPosition.z = dragPlaneZ;
                 block.transform.position = snappedPosition;
+                block.EndDragJiggle(successfulDrop: true);
                 block.ConsumeCapacity(removedCount);
                 block.Despawn();
                 selectionLineManager.RefreshSelection();
@@ -148,6 +171,7 @@ namespace NexZap.Gameplay.Mechanics
                 return;
             }
 
+            block.EndDragJiggle(successfulDrop: false);
             block.transform.SetParent(dragOriginalParent, false);
             block.transform.localPosition = dragOriginalLocalPosition;
             block.SetState(ColorBlockState.Idle);
@@ -156,11 +180,11 @@ namespace NexZap.Gameplay.Mechanics
 
         private Vector3 ScreenToWorld(Vector2 screenPosition)
         {
-            var zDistance = Mathf.Abs(gameplayCamera.transform.position.z);
-            var point = gameplayCamera.ScreenToWorldPoint(
-                new Vector3(screenPosition.x, screenPosition.y, zDistance));
-            point.z = 0f;
-            return point;
+            var ray = gameplayCamera.ScreenPointToRay(screenPosition);
+            var gameplayPlane = new Plane(Vector3.forward, new Vector3(0f, 0f, dragPlaneZ));
+            return gameplayPlane.Raycast(ray, out var distance)
+                ? ray.GetPoint(distance)
+                : Vector3.zero;
         }
 
         private void CheckLevelCompleted()

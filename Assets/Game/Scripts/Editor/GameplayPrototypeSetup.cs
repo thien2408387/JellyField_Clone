@@ -11,8 +11,8 @@ namespace NexZap.EditorTools
     public static class GameplayPrototypeSetup
     {
         private const string RootName = "---GameplayRoot---";
-        private const string PrefabFolder = "Assets/_NexZap/Prefabs/Gameplay";
-        private const string DataFolder = "Assets/_NexZap/Data/Levels";
+        private const string PrefabFolder = "Assets/Game/Prefabs/Gameplay";
+        private const string DataFolder = "Assets/Game/Data/Levels";
         private const string MaterialLibraryPath = PixelMaterialLibrary.DefaultAssetPath;
 
         [MenuItem("NexZap/Setup Gameplay Prototype")]
@@ -84,19 +84,19 @@ namespace NexZap.EditorTools
 
         private static void EnsureFolders()
         {
-            if (!AssetDatabase.IsValidFolder("Assets/_NexZap/Data"))
+            if (!AssetDatabase.IsValidFolder("Assets/Game/Data"))
             {
-                AssetDatabase.CreateFolder("Assets/_NexZap", "Data");
+                AssetDatabase.CreateFolder("Assets/Game", "Data");
             }
 
             if (!AssetDatabase.IsValidFolder(DataFolder))
             {
-                AssetDatabase.CreateFolder("Assets/_NexZap/Data", "Levels");
+                AssetDatabase.CreateFolder("Assets/Game/Data", "Levels");
             }
 
             if (!AssetDatabase.IsValidFolder(PrefabFolder))
             {
-                AssetDatabase.CreateFolder("Assets/_NexZap/Prefabs", "Gameplay");
+                AssetDatabase.CreateFolder("Assets/Game/Prefabs", "Gameplay");
             }
         }
 

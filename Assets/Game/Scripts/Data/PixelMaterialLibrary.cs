@@ -13,8 +13,8 @@ namespace NexZap.Data
     [CreateAssetMenu(fileName = "PixelMaterialLibrary", menuName = "NexZap/Pixel Material Library")]
     public class PixelMaterialLibrary : SerializedScriptableObject
     {
-        public const string DefaultMaterialsFolder = "Assets/_NexZap/Art/Materials/PixelColors";
-        public const string DefaultAssetPath = "Assets/_NexZap/Data/PixelMaterialLibrary.asset";
+        public const string DefaultMaterialsFolder = "Assets/Game/Art/Materials/PixelColors";
+        public const string DefaultAssetPath = "Assets/Game/Data/PixelMaterialLibrary.asset";
 
         [Serializable]
         public class PixelColorDefinition
@@ -250,24 +250,24 @@ namespace NexZap.Data
 
         private static void EnsureDefaultFolders()
         {
-            if (!AssetDatabase.IsValidFolder("Assets/_NexZap/Art"))
+            if (!AssetDatabase.IsValidFolder("Assets/Game/Art"))
             {
-                AssetDatabase.CreateFolder("Assets/_NexZap", "Art");
+                AssetDatabase.CreateFolder("Assets/Game", "Art");
             }
 
-            if (!AssetDatabase.IsValidFolder("Assets/_NexZap/Art/Materials"))
+            if (!AssetDatabase.IsValidFolder("Assets/Game/Art/Materials"))
             {
-                AssetDatabase.CreateFolder("Assets/_NexZap/Art", "Materials");
+                AssetDatabase.CreateFolder("Assets/Game/Art", "Materials");
             }
 
             if (!AssetDatabase.IsValidFolder(DefaultMaterialsFolder))
             {
-                AssetDatabase.CreateFolder("Assets/_NexZap/Art/Materials", "PixelColors");
+                AssetDatabase.CreateFolder("Assets/Game/Art/Materials", "PixelColors");
             }
 
-            if (!AssetDatabase.IsValidFolder("Assets/_NexZap/Data"))
+            if (!AssetDatabase.IsValidFolder("Assets/Game/Data"))
             {
-                AssetDatabase.CreateFolder("Assets/_NexZap", "Data");
+                AssetDatabase.CreateFolder("Assets/Game", "Data");
             }
         }
 

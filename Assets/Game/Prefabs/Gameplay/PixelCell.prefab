@@ -55,6 +55,7 @@ MonoBehaviour:
   filledSmoothness: 0
   filledPopScale: 1.08
   filledPopZ: 100
+  isFillable: 0
 --- !u!1 &2737877705462606883
 GameObject:
   m_ObjectHideFlags: 0

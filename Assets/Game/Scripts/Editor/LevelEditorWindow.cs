@@ -10,7 +10,7 @@ namespace NexZap.EditorTools
 {
     public class LevelEditorWindow : OdinMenuEditorWindow
     {
-        private const string LevelFolder = "Assets/_NexZap/Data/Levels";
+        private const string LevelFolder = "Assets/Game/Data/Levels";
 
         private bool autoSave = true;
 
