@@ -3118,28 +3118,28 @@ MonoBehaviour:
   idlePixelPrefab: {fileID: 1409224966014894005, guid: e482e9f76bfe68247acbe8af6c60004d, type: 3}
   fillPixelPrefab: {fileID: 1409224966014894005, guid: e482e9f76bfe68247acbe8af6c60004d, type: 3}
   pixelMaterialLibrary: {fileID: 11400000, guid: d95da50ed4d339a4d8b6365f48a38a1e, type: 2}
-  brushColorId: cc421a2b5d344ebbb001ab3e606188df
+  brushColorId: 58abcfe1c72845f19bdd450feceab1a6
   eraser: 0
   selectionLines:
   - blocks:
     - legacyColor: 0
-      colorId: cc421a2b5d344ebbb001ab3e606188df
+      colorId: 
       capacity: 92
     - legacyColor: 0
-      colorId: 58abcfe1c72845f19bdd450feceab1a6
+      colorId: 
       capacity: 52
     - legacyColor: 0
-      colorId: 38098f653a834f1283e3d412a8a53012
+      colorId: 
       capacity: 104
     - legacyColor: 0
-      colorId: a5e754658b774c21b31d09439655f200
+      colorId: 
       capacity: 24
     - legacyColor: 0
-      colorId: f7ee2784bb6b407da9ff864309c94b34
+      colorId: 
       capacity: 14
     - legacyColor: 0
-      colorId: 04d6908279094439a21b176ae7d252eb
+      colorId: 
       capacity: 16
     - legacyColor: 0
-      colorId: 985e49645e474b15918b1f44f72de5eb
+      colorId: 
       capacity: 7

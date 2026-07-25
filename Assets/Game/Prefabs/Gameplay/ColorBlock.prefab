@@ -221,12 +221,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   jellyMesh: {fileID: 910000000000000002}
   maxStretch: 0.5
-  maxRotation: 5
+  maxRotation: 0.5
   positionLag: 0.075
   velocityForMaxEffect: 1.5
-  followSmoothness: 11
+  followSmoothness: 15
   settleDuration: 0.2
-  springStrength: 150
+  springStrength: 200
   springDamping: 5
   directionWobble: 0.16
 --- !u!1 &4981421062042860949
