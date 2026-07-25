@@ -99,7 +99,9 @@ public class ReadmeEditor : Editor
 
         var iconWidth = Mathf.Min(EditorGUIUtility.currentViewWidth / 3f - 20f, 128f);
 
-        GUILayout.BeginHorizontal("In BigTitle");
+        // Do not resolve a named GUIStyle here. Inspector headers can be redrawn
+        // from native code before Unity has installed the current GUI skin.
+        GUILayout.BeginHorizontal();
         {
             if (readme.icon != null)
             {
@@ -161,7 +163,6 @@ public class ReadmeEditor : Editor
         get { return m_LinkStyle; }
     }
 
-    [SerializeField]
     GUIStyle m_LinkStyle;
 
     GUIStyle TitleStyle
@@ -169,7 +170,6 @@ public class ReadmeEditor : Editor
         get { return m_TitleStyle; }
     }
 
-    [SerializeField]
     GUIStyle m_TitleStyle;
 
     GUIStyle HeadingStyle
@@ -177,7 +177,6 @@ public class ReadmeEditor : Editor
         get { return m_HeadingStyle; }
     }
 
-    [SerializeField]
     GUIStyle m_HeadingStyle;
 
     GUIStyle BodyStyle
@@ -185,7 +184,6 @@ public class ReadmeEditor : Editor
         get { return m_BodyStyle; }
     }
 
-    [SerializeField]
     GUIStyle m_BodyStyle;
 
     GUIStyle ButtonStyle
@@ -193,12 +191,12 @@ public class ReadmeEditor : Editor
         get { return m_ButtonStyle; }
     }
 
-    [SerializeField]
     GUIStyle m_ButtonStyle;
 
     void Init()
     {
-        if (m_Initialized)
+        if (m_Initialized && m_BodyStyle != null && m_TitleStyle != null &&
+            m_HeadingStyle != null && m_LinkStyle != null && m_ButtonStyle != null)
             return;
         m_BodyStyle = new GUIStyle(EditorStyles.label);
         m_BodyStyle.wordWrap = true;

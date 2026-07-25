@@ -1,5 +1,6 @@
 using DG.Tweening;
 using NexZap.Data;
+using NexZap.Gameplay.Visuals;
 using UnityEngine;
 
 namespace NexZap.Gameplay.Mechanics
@@ -25,6 +26,7 @@ namespace NexZap.Gameplay.Mechanics
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private static readonly int ColorId = Shader.PropertyToID("_Color");
         private static readonly int SmoothnessId = Shader.PropertyToID("_Smoothness");
+        private static readonly int GlossinessId = Shader.PropertyToID("_Glossiness");
 
         private PixelMaterialLibrary materialLibrary;
         private Material emptyCellMaterial;
@@ -219,7 +221,7 @@ namespace NexZap.Gameplay.Mechanics
                 var sharedMaterial = materialLibrary.GetMaterial(TargetColorId);
                 if (sharedMaterial != null)
                 {
-                    renderer.sharedMaterial = sharedMaterial;
+                    renderer.sharedMaterial = JellyMaterialUtility.GetOrCreate(sharedMaterial, filledSmoothness);
                 }
             }
 
@@ -238,6 +240,11 @@ namespace NexZap.Gameplay.Mechanics
                 if (renderer.sharedMaterial.HasProperty(SmoothnessId))
                 {
                     propertyBlock.SetFloat(SmoothnessId, smoothness);
+                }
+
+                if (renderer.sharedMaterial.HasProperty(GlossinessId))
+                {
+                    propertyBlock.SetFloat(GlossinessId, smoothness);
                 }
             }
 

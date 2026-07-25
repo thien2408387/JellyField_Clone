@@ -52,7 +52,7 @@ MonoBehaviour:
   previewStrength: 0.2
   previewDesaturation: 0
   unfilledSmoothness: 0
-  filledSmoothness: 0
+  filledSmoothness: 0.92
   filledPopScale: 1.08
   filledPopZ: 100
   isFillable: 0

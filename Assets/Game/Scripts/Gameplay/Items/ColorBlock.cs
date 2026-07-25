@@ -1,8 +1,8 @@
 using System;
-using System.Collections.Generic;
 using DG.Tweening;
 using NexZap.Data;
 using NexZap.Gameplay.Mechanics;
+using NexZap.Gameplay.Visuals;
 using TMPro;
 using UnityEngine;
 
@@ -13,11 +13,6 @@ namespace NexZap.Gameplay.Items
     {
         private static readonly int BaseColorPropertyId = Shader.PropertyToID("_BaseColor");
         private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
-        private static readonly int SmoothnessPropertyId = Shader.PropertyToID("_Smoothness");
-        private static readonly int MetallicPropertyId = Shader.PropertyToID("_Metallic");
-        private static readonly int CoatMaskPropertyId = Shader.PropertyToID("_ClearCoatMask");
-        private static readonly int CoatSmoothnessPropertyId = Shader.PropertyToID("_ClearCoatSmoothness");
-        private static readonly Dictionary<Material, Material> JellyMaterials = new();
 
         [Header("Visual")]
         [Tooltip("Child chứa toàn bộ hình ảnh. Mọi animation scale/punch chạy trên đây để không đụng tới chuyển động của root (DOPath).")]
@@ -34,7 +29,6 @@ namespace NexZap.Gameplay.Items
 
         [Header("Jelly Material")]
         [SerializeField, Range(0f, 1f)] private float jellySmoothness = 0.92f;
-        [SerializeField, Range(0f, 1f)] private float jellyClearCoat = 0.65f;
 
         private MeshRenderer cubeRenderer;
         private MeshRenderer cubeHighlightRenderer;
@@ -229,7 +223,7 @@ namespace NexZap.Gameplay.Items
                 : Color.gray;
 
             var colorMaterial = materialLibrary != null ? materialLibrary.GetMaterial(ColorId) : null;
-            var jellyMaterial = GetOrCreateJellyMaterial(colorMaterial);
+            var jellyMaterial = JellyMaterialUtility.GetOrCreate(colorMaterial, jellySmoothness);
             if (cubeRenderer != null && jellyMaterial != null)
             {
                 cubeRenderer.sharedMaterial = jellyMaterial;
@@ -264,49 +258,6 @@ namespace NexZap.Gameplay.Items
 
             RefreshVisual();
             PlaySpawn();
-        }
-
-        private Material GetOrCreateJellyMaterial(Material source)
-        {
-            if (source == null)
-            {
-                return null;
-            }
-
-            if (JellyMaterials.TryGetValue(source, out var cached) && cached != null)
-            {
-                return cached;
-            }
-
-            var material = new Material(source)
-            {
-                name = $"{source.name} (Jelly)",
-                hideFlags = HideFlags.HideAndDontSave
-            };
-
-            if (material.HasProperty(SmoothnessPropertyId))
-            {
-                material.SetFloat(SmoothnessPropertyId, jellySmoothness);
-            }
-
-            if (material.HasProperty(MetallicPropertyId))
-            {
-                material.SetFloat(MetallicPropertyId, 0f);
-            }
-
-            if (material.HasProperty(CoatMaskPropertyId))
-            {
-                material.SetFloat(CoatMaskPropertyId, jellyClearCoat);
-                material.EnableKeyword("_CLEARCOAT");
-            }
-
-            if (material.HasProperty(CoatSmoothnessPropertyId))
-            {
-                material.SetFloat(CoatSmoothnessPropertyId, 1f);
-            }
-
-            JellyMaterials[source] = material;
-            return material;
         }
 
         public void SetState(ColorBlockState state)
