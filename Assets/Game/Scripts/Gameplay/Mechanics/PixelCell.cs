@@ -1,0 +1,270 @@
+using DG.Tweening;
+using NexZap.Data;
+using NexZap.Gameplay.Visuals;
+using UnityEngine;
+
+namespace NexZap.Gameplay.Mechanics
+{
+    public class PixelCell : MonoBehaviour
+    {
+        [SerializeField] private MeshRenderer bodyRenderer;
+        [SerializeField] private MeshRenderer fillRenderer;
+
+        [Header("Preview")]
+        [SerializeField] private Color emptyCellColor = new Color(0.04f, 0.04f, 0.055f, 1f);
+        [SerializeField, Range(0f, 1f)] private float previewStrength = 0.28f;
+        [SerializeField, Range(0f, 1f)] private float previewDesaturation = 0.45f;
+        [SerializeField, Range(0f, 1f)] private float unfilledSmoothness = 0.05f;
+        [SerializeField, Range(0f, 1f)] private float filledSmoothness = 0.55f;
+        [SerializeField, Min(1f)] private float filledPopScale = 1.08f;
+        [SerializeField] private float filledPopZ = 0.015f;
+
+        [Header("Fill")]
+        [Tooltip("PixelBoard cập nhật cờ này: bật = được phép fill, tắt = bị chặn.")]
+        [SerializeField] private bool isFillable;
+
+        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int SmoothnessId = Shader.PropertyToID("_Smoothness");
+        private static readonly int GlossinessId = Shader.PropertyToID("_Glossiness");
+
+        private PixelMaterialLibrary materialLibrary;
+        private Material emptyCellMaterial;
+        private MaterialPropertyBlock bodyPropertyBlock;
+        private MaterialPropertyBlock fillPropertyBlock;
+        private bool isExistingBoardColor;
+
+        public Vector2Int GridPosition { get; private set; }
+        public string TargetColorId { get; private set; }
+        public bool IsFilled { get; private set; }
+        public bool IsEmpty => string.IsNullOrEmpty(TargetColorId);
+        public bool CountsTowardTarget { get; private set; }
+
+        public bool IsFillableFlag => isFillable;
+        public void SetFillableFlag(bool value) => isFillable = value;
+
+        public void Initialize(
+            Vector2Int gridPosition,
+            string targetColorId,
+            Vector2 size,
+            float depth,
+            PixelMaterialLibrary library)
+        {
+            GridPosition = gridPosition;
+            TargetColorId = targetColorId ?? PixelColorIds.Empty;
+            materialLibrary = library;
+            emptyCellMaterial = FindEmptyCellMaterial(library);
+            if (emptyCellMaterial == null && bodyRenderer != null)
+            {
+                emptyCellMaterial = bodyRenderer.sharedMaterial;
+            }
+            IsFilled = false;
+            CountsTowardTarget = false;
+            isExistingBoardColor = false;
+            SetSize(size, depth);
+            RefreshVisual();
+        }
+
+        private static Material FindEmptyCellMaterial(PixelMaterialLibrary library)
+        {
+            if (library == null || library.colors == null)
+            {
+                return null;
+            }
+
+            foreach (var definition in library.colors)
+            {
+                if (definition != null && definition.material != null)
+                {
+                    return definition.material;
+                }
+            }
+
+            return null;
+        }
+
+        public void ClearColor()
+        {
+            TargetColorId = PixelColorIds.Empty;
+            IsFilled = false;
+            isExistingBoardColor = false;
+            isFillable = false;
+            CountsTowardTarget = false;
+            RefreshVisual();
+        }
+
+        public void SetPlacedColor(string colorId)
+        {
+            TargetColorId = colorId ?? PixelColorIds.Empty;
+            IsFilled = !string.IsNullOrEmpty(TargetColorId);
+            isExistingBoardColor = true;
+            isFillable = false;
+            CountsTowardTarget = false;
+            RefreshVisual();
+        }
+
+        public void ShowAsExistingColor()
+        {
+            if (IsEmpty)
+            {
+                return;
+            }
+
+            IsFilled = true;
+            isExistingBoardColor = true;
+            isFillable = false;
+            CountsTowardTarget = true;
+            RefreshVisual();
+        }
+
+        public void SetSize(Vector2 size, float depth)
+        {
+            transform.localScale = new Vector3(size.x, size.y, depth);
+        }
+
+        public bool TryFill(string colorId)
+        {
+            if (IsFilled || string.IsNullOrEmpty(colorId) || colorId != TargetColorId || !isFillable)
+            {
+                return false;
+            }
+
+            IsFilled = true;
+            isFillable = false;
+            RefreshVisual();
+            PlayFillFeedback();
+            return true;
+        }
+
+        private void RefreshVisual()
+        {
+            if (IsEmpty)
+            {
+                if (bodyRenderer != null && emptyCellMaterial != null)
+                {
+                    bodyRenderer.sharedMaterial = emptyCellMaterial;
+                }
+
+                ApplyRenderer(bodyRenderer, emptyCellColor,
+                    bodyPropertyBlock ??= new MaterialPropertyBlock(), false, unfilledSmoothness);
+                if (fillRenderer != null)
+                {
+                    fillRenderer.gameObject.SetActive(false);
+                    fillRenderer.transform.localScale = Vector3.one;
+                    fillRenderer.transform.localPosition = Vector3.zero;
+                }
+
+                return;
+            }
+
+            var targetColor = materialLibrary != null
+                ? materialLibrary.GetTint(TargetColorId)
+                : Color.gray;
+
+            if (IsFilled)
+            {
+                ApplyRenderer(bodyRenderer, targetColor, bodyPropertyBlock ??= new MaterialPropertyBlock(), true, filledSmoothness);
+
+                if (fillRenderer != null)
+                {
+                    fillRenderer.gameObject.SetActive(!isExistingBoardColor);
+                    if (!isExistingBoardColor)
+                    {
+                        fillRenderer.transform.localScale = Vector3.one * filledPopScale;
+                        fillRenderer.transform.localPosition = new Vector3(0f, 0f, filledPopZ);
+                        ApplyRenderer(fillRenderer, targetColor, fillPropertyBlock ??= new MaterialPropertyBlock(), true, filledSmoothness);
+                    }
+                }
+
+                return;
+            }
+
+            var shell = new Color(0.14f, 0.14f, 0.16f, 1f);
+            var previewColor = Color.Lerp(shell, targetColor, previewStrength);
+            previewColor = Desaturate(previewColor, previewDesaturation);
+
+            ApplyRenderer(bodyRenderer, previewColor, bodyPropertyBlock ??= new MaterialPropertyBlock(), true, unfilledSmoothness);
+
+            if (fillRenderer != null)
+            {
+                fillRenderer.gameObject.SetActive(false);
+                fillRenderer.transform.localScale = Vector3.one;
+                fillRenderer.transform.localPosition = Vector3.zero;
+            }
+        }
+
+        private static Color Desaturate(Color color, float amount)
+        {
+            var gray = color.r * 0.299f + color.g * 0.587f + color.b * 0.114f;
+            var t = Mathf.Clamp01(amount);
+            return new Color(
+                Mathf.Lerp(color.r, gray, t),
+                Mathf.Lerp(color.g, gray, t),
+                Mathf.Lerp(color.b, gray, t),
+                color.a);
+        }
+
+        private void ApplyRenderer(
+            MeshRenderer renderer,
+            Color color,
+            MaterialPropertyBlock propertyBlock,
+            bool useSharedMaterial,
+            float smoothness)
+        {
+            if (renderer == null)
+            {
+                return;
+            }
+
+            if (useSharedMaterial && materialLibrary != null)
+            {
+                var sharedMaterial = materialLibrary.GetMaterial(TargetColorId);
+                if (sharedMaterial != null)
+                {
+                    renderer.sharedMaterial = JellyMaterialUtility.GetOrCreate(sharedMaterial, filledSmoothness);
+                }
+            }
+
+            propertyBlock.Clear();
+            if (renderer.sharedMaterial != null)
+            {
+                if (renderer.sharedMaterial.HasProperty(BaseColorId))
+                {
+                    propertyBlock.SetColor(BaseColorId, color);
+                }
+                else if (renderer.sharedMaterial.HasProperty(ColorId))
+                {
+                    propertyBlock.SetColor(ColorId, color);
+                }
+
+                if (renderer.sharedMaterial.HasProperty(SmoothnessId))
+                {
+                    propertyBlock.SetFloat(SmoothnessId, smoothness);
+                }
+
+                if (renderer.sharedMaterial.HasProperty(GlossinessId))
+                {
+                    propertyBlock.SetFloat(GlossinessId, smoothness);
+                }
+            }
+
+            renderer.SetPropertyBlock(propertyBlock);
+        }
+
+        private void PlayFillFeedback()
+        {
+            transform.DOKill(true);
+            var punch = new Vector3(
+                transform.localScale.x * 0.2f,
+                transform.localScale.y * 0.2f,
+                transform.localScale.z * 0.15f);
+            transform.DOPunchScale(punch, 0.2f, 6, 0.7f);
+        }
+
+        private void Reset()
+        {
+            bodyRenderer = transform.Find("Body")?.GetComponent<MeshRenderer>();
+            fillRenderer = transform.Find("Fill")?.GetComponent<MeshRenderer>();
+        }
+    }
+}

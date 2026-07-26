@@ -1,0 +1,682 @@
+using System;
+using DG.Tweening;
+using NexZap.Data;
+using NexZap.Gameplay.Mechanics;
+using NexZap.Gameplay.Visuals;
+using TMPro;
+using UnityEngine;
+
+namespace NexZap.Gameplay.Items
+{
+    [RequireComponent(typeof(BoxCollider))]
+    public class ColorBlock : MonoBehaviour
+    {
+        private static readonly int BaseColorPropertyId = Shader.PropertyToID("_BaseColor");
+        private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
+
+        [Header("Visual")]
+        [Tooltip("Child chứa toàn bộ hình ảnh. Mọi animation scale/punch chạy trên đây để không đụng tới chuyển động của root (DOPath).")]
+        [SerializeField] private Transform visualRoot;
+        [SerializeField] private SpriteRenderer spriteRenderer;
+        [SerializeField] private TextMeshPro capacityLabel;
+        [SerializeField] private SpriteRenderer highlightRenderer;
+        [SerializeField] private Collider2D bodyCollider;
+        [SerializeField] private JellyController jellyController;
+
+        [Header("3D Visual")]
+        [SerializeField] private Vector3 cubeSize = new Vector3(0.2f, 0.2f, 0.12f);
+        [SerializeField] private float highlightScale = 1.16f;
+
+        [Header("Jelly Material")]
+        [SerializeField, Range(0f, 1f)] private float jellySmoothness = 0.92f;
+
+        private MeshRenderer cubeRenderer;
+        private MeshRenderer cubeHighlightRenderer;
+        private MeshRenderer cubeRenderer2;
+        private MeshRenderer cubeHighlightRenderer2;
+        [SerializeField] private BoxCollider bodyCollider3D;
+        private MaterialPropertyBlock cubePropertyBlock;
+        private MaterialPropertyBlock highlightPropertyBlock;
+
+        [Header("Animation")]
+        [SerializeField] private float spawnDuration = 0.25f;
+        [SerializeField] private float selectablePulseScale = 1.12f;
+        [SerializeField] private float selectablePulseDuration = 0.55f;
+        [SerializeField] private float tapPunchScale = 0.25f;
+        [SerializeField] private float consumePunchScale = 0.18f;
+        [SerializeField] private float depleteDuration = 0.28f;
+        [SerializeField] private float dimmedAlpha = 0.45f;
+        [Tooltip("Text sức chứa luôn render trên body theo offset này để tránh bị đè/nhấp nháy.")]
+        [SerializeField] private int labelSortingOffset = 1;
+
+        private Tween pulseTween;
+        private static Material sharedSpriteMaterial;
+        private Color baseColor;
+        private Color secondaryColor;
+        private bool isSelectable;
+        private bool isDimmed;
+        private ColorBlockPool pool;
+
+        public string[] ColorIds { get; private set; }
+        public int RemainingCapacity { get; private set; }
+        public ColorBlockState State { get; private set; } = ColorBlockState.Idle;
+
+        public bool HasCapacity => RemainingCapacity > 0;
+        public bool IsSelectable => isSelectable;
+
+        private Transform Vis => visualRoot != null ? visualRoot : transform;
+
+        private void Awake()
+        {
+            if (bodyCollider == null)
+            {
+                bodyCollider = GetComponent<Collider2D>();
+            }
+
+            if (jellyController == null)
+            {
+                jellyController = GetComponent<JellyController>();
+            }
+
+            Build3DVisual();
+            EnsureValidSpriteMaterials();
+            ConfigureLabelSorting();
+        }
+
+        private void Build3DVisual()
+        {
+            var jellyRoot = jellyController != null && jellyController.JellyMesh != null
+                ? jellyController.JellyMesh
+                : Vis;
+
+            var existingBody = jellyRoot.Find("CubeBody");
+            cubeRenderer = existingBody != null ? existingBody.GetComponent<MeshRenderer>() : null;
+            if (cubeRenderer == null)
+            {
+                cubeRenderer = CreateCubeRenderer("CubeBody", jellyRoot, cubeSize, Vector3.zero);
+            }
+
+            var existingBody2 = jellyRoot.Find("CubeBody2");
+            cubeRenderer2 = existingBody2 != null ? existingBody2.GetComponent<MeshRenderer>() : null;
+            if (cubeRenderer2 == null)
+            {
+                cubeRenderer2 = CreateCubeRenderer("CubeBody2", jellyRoot, cubeSize, Vector3.zero);
+            }
+
+            var existingHighlight = jellyRoot.Find("CubeHighlight");
+            cubeHighlightRenderer = existingHighlight != null
+                ? existingHighlight.GetComponent<MeshRenderer>()
+                : null;
+            if (cubeHighlightRenderer == null)
+            {
+                var highlightSize = new Vector3(
+                    cubeSize.x * highlightScale,
+                    cubeSize.y * highlightScale,
+                    cubeSize.z * 0.9f);
+                cubeHighlightRenderer = CreateCubeRenderer(
+                    "CubeHighlight", jellyRoot, highlightSize, new Vector3(0f, 0f, cubeSize.z * 0.12f));
+            }
+
+            var existingHighlight2 = jellyRoot.Find("CubeHighlight2");
+            cubeHighlightRenderer2 = existingHighlight2 != null
+                ? existingHighlight2.GetComponent<MeshRenderer>()
+                : null;
+            if (cubeHighlightRenderer2 == null)
+            {
+                var highlightSize = new Vector3(
+                    cubeSize.x * highlightScale,
+                    cubeSize.y * highlightScale,
+                    cubeSize.z * 0.9f);
+                cubeHighlightRenderer2 = CreateCubeRenderer(
+                    "CubeHighlight2", jellyRoot, highlightSize, new Vector3(0f, 0f, cubeSize.z * 0.12f));
+            }
+
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.enabled = false;
+            }
+
+            if (highlightRenderer != null)
+            {
+                highlightRenderer.enabled = false;
+            }
+
+            if (bodyCollider != null)
+            {
+                bodyCollider.enabled = false;
+            }
+
+            bodyCollider3D = GetComponent<BoxCollider>();
+            if (bodyCollider3D == null)
+            {
+                bodyCollider3D = gameObject.AddComponent<BoxCollider>();
+            }
+
+            bodyCollider3D.center = Vector3.zero;
+            bodyCollider3D.size = cubeSize;
+            bodyCollider3D.enabled = false;
+            cubeHighlightRenderer.enabled = false;
+        }
+
+        private static MeshRenderer CreateCubeRenderer(
+            string objectName, Transform parent, Vector3 size, Vector3 localPosition)
+        {
+            var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cube.name = objectName;
+            cube.transform.SetParent(parent, false);
+            cube.transform.localPosition = localPosition;
+            cube.transform.localRotation = Quaternion.identity;
+            cube.transform.localScale = size;
+            cube.layer = parent.gameObject.layer;
+
+            var generatedCollider = cube.GetComponent<Collider>();
+            if (generatedCollider != null)
+            {
+                generatedCollider.enabled = false;
+                UnityEngine.Object.Destroy(generatedCollider);
+            }
+
+            var renderer = cube.GetComponent<MeshRenderer>();
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return renderer;
+        }
+
+        private void EnsureValidSpriteMaterials()
+        {
+            if (sharedSpriteMaterial == null)
+            {
+                var shader = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default")
+                    ?? Shader.Find("Sprites/Default");
+                if (shader != null)
+                {
+                    sharedSpriteMaterial = new Material(shader)
+                    {
+                        name = "ColorBlock Sprite Material",
+                        hideFlags = HideFlags.HideAndDontSave
+                    };
+                }
+            }
+
+            if (sharedSpriteMaterial == null)
+            {
+                return;
+            }
+
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.sharedMaterial = sharedSpriteMaterial;
+            }
+
+            if (highlightRenderer != null)
+            {
+                highlightRenderer.sharedMaterial = sharedSpriteMaterial;
+            }
+        }
+
+        // Ép text render trên body (cùng sorting layer, order cao hơn) để không bị đè/nhấp nháy.
+        private void ConfigureLabelSorting()
+        {
+            if (capacityLabel == null || spriteRenderer == null)
+            {
+                return;
+            }
+
+            var labelRenderer = capacityLabel.GetComponent<Renderer>();
+            if (labelRenderer != null)
+            {
+                labelRenderer.sortingLayerID = spriteRenderer.sortingLayerID;
+                labelRenderer.sortingOrder = spriteRenderer.sortingOrder + labelSortingOffset;
+            }
+        }
+
+        public void SetPool(ColorBlockPool owner)
+        {
+            pool = owner;
+        }
+
+        public void Initialize(string[] colorIds, int capacity, PixelMaterialLibrary materialLibrary)
+        {
+            EnsureValidSpriteMaterials();
+            jellyController?.ResetVisual();
+            ColorIds = colorIds ?? new[] { PixelColorIds.Empty };
+            RemainingCapacity = capacity;
+            State = ColorBlockState.Idle;
+            
+            var primaryId = ColorIds[0];
+            var secondaryId = ColorIds.Length > 1 ? ColorIds[1] : primaryId;
+
+            baseColor = materialLibrary != null ? materialLibrary.GetTint(primaryId) : Color.gray;
+            secondaryColor = materialLibrary != null ? materialLibrary.GetTint(secondaryId) : Color.gray;
+
+            var primaryMaterial = materialLibrary != null ? materialLibrary.GetMaterial(primaryId) : null;
+            var primaryJellyMat = JellyMaterialUtility.GetOrCreate(primaryMaterial, jellySmoothness);
+            if (cubeRenderer != null && primaryJellyMat != null) cubeRenderer.sharedMaterial = primaryJellyMat;
+            if (cubeHighlightRenderer != null && primaryJellyMat != null) cubeHighlightRenderer.sharedMaterial = primaryJellyMat;
+
+            if (ColorIds.Length > 1)
+            {
+                var secondaryMaterial = materialLibrary != null ? materialLibrary.GetMaterial(secondaryId) : null;
+                var secondaryJellyMat = JellyMaterialUtility.GetOrCreate(secondaryMaterial, jellySmoothness);
+                if (cubeRenderer2 != null && secondaryJellyMat != null) cubeRenderer2.sharedMaterial = secondaryJellyMat;
+                if (cubeHighlightRenderer2 != null && secondaryJellyMat != null) cubeHighlightRenderer2.sharedMaterial = secondaryJellyMat;
+
+                var halfSize = new Vector3(cubeSize.x, cubeSize.y / 2f, cubeSize.z);
+                var bottomPos = new Vector3(0f, -cubeSize.y / 4f, 0f);
+                var topPos = new Vector3(0f, cubeSize.y / 4f, 0f);
+
+                if (cubeRenderer != null) { cubeRenderer.transform.localScale = halfSize; cubeRenderer.transform.localPosition = bottomPos; }
+                if (cubeRenderer2 != null) { cubeRenderer2.transform.localScale = halfSize; cubeRenderer2.transform.localPosition = topPos; cubeRenderer2.gameObject.SetActive(true); }
+
+                var hSize = new Vector3(cubeSize.x * highlightScale, cubeSize.y * highlightScale, cubeSize.z * 0.9f);
+                var hHalfSize = new Vector3(hSize.x, hSize.y / 2f, hSize.z);
+                var hBottomPos = new Vector3(0f, -hSize.y / 4f, cubeSize.z * 0.12f);
+                var hTopPos = new Vector3(0f, hSize.y / 4f, cubeSize.z * 0.12f);
+                
+                if (cubeHighlightRenderer != null) { cubeHighlightRenderer.transform.localScale = hHalfSize; cubeHighlightRenderer.transform.localPosition = hBottomPos; }
+                if (cubeHighlightRenderer2 != null) { cubeHighlightRenderer2.transform.localScale = hHalfSize; cubeHighlightRenderer2.transform.localPosition = hTopPos; cubeHighlightRenderer2.gameObject.SetActive(true); }
+            }
+            else
+            {
+                if (cubeRenderer != null) { cubeRenderer.transform.localScale = cubeSize; cubeRenderer.transform.localPosition = Vector3.zero; }
+                if (cubeRenderer2 != null) { cubeRenderer2.gameObject.SetActive(false); }
+                
+                var hSize = new Vector3(cubeSize.x * highlightScale, cubeSize.y * highlightScale, cubeSize.z * 0.9f);
+                if (cubeHighlightRenderer != null) { cubeHighlightRenderer.transform.localScale = hSize; cubeHighlightRenderer.transform.localPosition = new Vector3(0f, 0f, cubeSize.z * 0.12f); }
+                if (cubeHighlightRenderer2 != null) { cubeHighlightRenderer2.gameObject.SetActive(false); }
+            }
+
+            isSelectable = false;
+            isDimmed = false;
+            if (bodyCollider != null)
+            {
+                bodyCollider.enabled = false;
+            }
+
+            if (bodyCollider3D != null)
+            {
+                bodyCollider3D.enabled = false;
+            }
+
+            if (highlightRenderer != null)
+            {
+                highlightRenderer.enabled = false;
+            }
+
+            if (cubeHighlightRenderer != null)
+            {
+                cubeHighlightRenderer.enabled = false;
+            }
+
+            RefreshVisual();
+            PlaySpawn();
+        }
+
+        public void SetState(ColorBlockState state)
+        {
+            State = state;
+
+            // Khi block rời line (lên path, vào queue, fill...) thì luôn sáng và không tap được.
+            if (state != ColorBlockState.Idle)
+            {
+                SetSelectable(false);
+                SetDimmed(false);
+            }
+        }
+
+        public int ConsumeCapacity(int amount)
+        {
+            var consumed = Mathf.Min(amount, RemainingCapacity);
+            RemainingCapacity -= consumed;
+            RefreshVisual();
+
+            if (consumed > 0)
+            {
+                PlayConsumeFeedback();
+            }
+
+            return consumed;
+        }
+
+        public void SetSelectable(bool selectable)
+        {
+            if (isSelectable != selectable)
+            {
+                isSelectable = selectable;
+
+                if (bodyCollider != null)
+                {
+                    bodyCollider.enabled = false;
+                }
+
+                if (bodyCollider3D != null)
+                {
+                    bodyCollider3D.enabled = selectable;
+                }
+
+                if (highlightRenderer != null)
+                {
+                    highlightRenderer.enabled = false;
+                }
+
+                if (cubeHighlightRenderer != null)
+                {
+                    cubeHighlightRenderer.enabled = selectable;
+                }
+
+                if (cubeHighlightRenderer2 != null && ColorIds != null && ColorIds.Length > 1)
+                {
+                    cubeHighlightRenderer2.enabled = selectable;
+                }
+            }
+
+            if (selectable)
+            {
+                StartPulse();
+            }
+            else
+            {
+                StopPulse();
+            }
+        }
+
+        public void SetDimmed(bool dimmed)
+        {
+            isDimmed = dimmed;
+            ApplyAlpha(dimmed ? dimmedAlpha : 1f);
+        }
+
+        /// <summary>
+        /// Controls whether this pre-created block is currently exposed by the
+        /// sequential selection queue. Revealing a hidden block replays its spawn.
+        /// </summary>
+        public void SetSequenceVisible(bool visible)
+        {
+            if (!visible)
+            {
+                SetSelectable(false);
+                SetDimmed(false);
+                gameObject.SetActive(false);
+                return;
+            }
+
+            var wasHidden = !gameObject.activeSelf;
+            gameObject.SetActive(true);
+            SetDimmed(false);
+            SetSelectable(true);
+
+            if (wasHidden)
+            {
+                ResetJellyVisual();
+                PlaySpawn();
+            }
+        }
+
+        public void PlayTapFeedback()
+        {
+            StopPulse();
+            Vis.DOKill(true);
+            Vis.localScale = Vector3.one;
+            Vis.DOPunchScale(Vector3.one * tapPunchScale, 0.22f, 8, 0.6f);
+        }
+
+        public void PlayPickupJelly()
+        {
+            jellyController?.PlayStretchEffect();
+        }
+
+        public void BeginDragJiggle(Vector3 worldPosition)
+        {
+            jellyController?.BeginDragJiggle(worldPosition);
+        }
+
+        public void UpdateDragJiggle(Vector3 worldPosition, float deltaTime)
+        {
+            jellyController?.UpdateDragJiggle(worldPosition, deltaTime);
+        }
+
+        public void EndDragJiggle(bool successfulDrop)
+        {
+            jellyController?.EndDragJiggle(successfulDrop);
+        }
+
+        public void PlayDropJelly()
+        {
+            jellyController?.PlaySquashImpact();
+        }
+
+        public void ResetJellyVisual()
+        {
+            jellyController?.ResetVisual();
+        }
+
+        /// <summary>
+        /// Animation co lại + mờ dần rồi trả về pool (KHÔNG Destroy).
+        /// </summary>
+        public void Despawn()
+        {
+            SetState(ColorBlockState.Depleting);
+            StopPulse();
+            Vis.DOKill();
+
+            if (capacityLabel != null)
+            {
+                capacityLabel.gameObject.SetActive(false);
+            }
+
+            var sequence = DOTween.Sequence();
+            sequence.Join(Vis.DOScale(Vector3.zero, depleteDuration).SetEase(Ease.InBack));
+
+            if (spriteRenderer != null)
+            {
+                sequence.Join(spriteRenderer.DOFade(0f, depleteDuration));
+            }
+
+            sequence.OnComplete(ReturnToPool);
+        }
+
+        /// <summary>
+        /// Trả ngay về pool, bỏ qua animation (dùng khi reload level / dọn dẹp).
+        /// </summary>
+        public void ReturnToPoolImmediate()
+        {
+            transform.DOKill();
+            Vis.DOKill();
+            ResetJellyVisual();
+            pulseTween?.Kill();
+            pulseTween = null;
+            ReturnToPool();
+        }
+
+        public void OnReturnedToPool()
+        {
+            transform.DOKill();
+            Vis.DOKill();
+            ResetJellyVisual();
+            pulseTween?.Kill();
+            pulseTween = null;
+
+            isSelectable = false;
+            isDimmed = false;
+            transform.localScale = Vector3.one;
+            Vis.localScale = Vector3.one;
+
+            if (bodyCollider != null)
+            {
+                bodyCollider.enabled = false;
+            }
+
+            if (bodyCollider3D != null)
+            {
+                bodyCollider3D.enabled = false;
+            }
+
+            if (highlightRenderer != null)
+            {
+                highlightRenderer.enabled = false;
+            }
+
+            if (cubeHighlightRenderer != null)
+            {
+                cubeHighlightRenderer.enabled = false;
+            }
+
+            if (cubeHighlightRenderer2 != null)
+            {
+                cubeHighlightRenderer2.enabled = false;
+            }
+
+            if (spriteRenderer != null)
+            {
+                var color = spriteRenderer.color;
+                color.a = 1f;
+                spriteRenderer.color = color;
+            }
+        }
+
+        public void RefreshVisual()
+        {
+            ApplyAlpha(isDimmed ? dimmedAlpha : 1f);
+
+            if (capacityLabel != null)
+            {
+                capacityLabel.text = RemainingCapacity.ToString();
+                capacityLabel.gameObject.SetActive(RemainingCapacity > 0);
+            }
+
+            if (highlightRenderer != null)
+            {
+                var highlightColor = baseColor;
+                highlightColor.a = 0.5f;
+                highlightRenderer.color = highlightColor;
+            }
+
+            var cubeHighlightColor = Color.Lerp(baseColor, Color.white, 0.45f);
+            ApplyCubeColor(
+                cubeHighlightRenderer,
+                cubeHighlightColor,
+                highlightPropertyBlock ??= new MaterialPropertyBlock());
+
+            if (ColorIds != null && ColorIds.Length > 1)
+            {
+                var cubeHighlightColor2 = Color.Lerp(secondaryColor, Color.white, 0.45f);
+                ApplyCubeColor(
+                    cubeHighlightRenderer2,
+                    cubeHighlightColor2,
+                    highlightPropertyBlock);
+            }
+        }
+
+        private static void ApplyCubeColor(
+            MeshRenderer renderer, Color color, MaterialPropertyBlock propertyBlock)
+        {
+            if (renderer == null || renderer.sharedMaterial == null)
+            {
+                return;
+            }
+
+            propertyBlock.Clear();
+            if (renderer.sharedMaterial.HasProperty(BaseColorPropertyId))
+            {
+                propertyBlock.SetColor(BaseColorPropertyId, color);
+            }
+            else if (renderer.sharedMaterial.HasProperty(ColorPropertyId))
+            {
+                propertyBlock.SetColor(ColorPropertyId, color);
+            }
+
+            renderer.SetPropertyBlock(propertyBlock);
+        }
+
+        private void ReturnToPool()
+        {
+            if (pool != null)
+            {
+                pool.Release(this);
+            }
+            else
+            {
+                gameObject.SetActive(false);
+            }
+        }
+
+        private void PlaySpawn()
+        {
+            Vis.DOKill();
+            Vis.localScale = Vector3.zero;
+            Vis.DOScale(Vector3.one, spawnDuration).SetEase(Ease.OutBack);
+        }
+
+        private void PlayConsumeFeedback()
+        {
+            Vis.DOKill(true);
+            Vis.localScale = Vector3.one;
+            Vis.DOPunchScale(Vector3.one * consumePunchScale, 0.2f, 6, 0.7f);
+
+            if (capacityLabel != null)
+            {
+                capacityLabel.transform.DOKill(true);
+                capacityLabel.transform.localScale = Vector3.one;
+                capacityLabel.transform.DOPunchScale(Vector3.one * 0.3f, 0.25f, 6, 0.7f);
+            }
+        }
+
+        private void StartPulse()
+        {
+            StopPulse();
+            Vis.localScale = Vector3.one;
+            pulseTween = Vis
+                .DOScale(Vector3.one * selectablePulseScale, selectablePulseDuration)
+                .SetEase(Ease.InOutSine)
+                .SetLoops(-1, LoopType.Yoyo);
+        }
+
+        private void StopPulse()
+        {
+            if (pulseTween != null)
+            {
+                pulseTween.Kill();
+                pulseTween = null;
+                Vis.localScale = Vector3.one;
+            }
+        }
+
+        private void ApplyAlpha(float alpha)
+        {
+            var color = baseColor;
+            color.a = alpha;
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.color = color;
+            }
+
+            var cubeColor = Color.Lerp(baseColor, Color.black, (1f - alpha) * 0.55f);
+            cubeColor.a = 1f;
+            ApplyCubeColor(cubeRenderer, cubeColor, cubePropertyBlock ??= new MaterialPropertyBlock());
+
+            if (ColorIds != null && ColorIds.Length > 1)
+            {
+                var cubeColor2 = Color.Lerp(secondaryColor, Color.black, (1f - alpha) * 0.55f);
+                cubeColor2.a = 1f;
+                ApplyCubeColor(cubeRenderer2, cubeColor2, cubePropertyBlock);
+            }
+        }
+
+        private void OnDestroy()
+        {
+            transform.DOKill();
+            Vis.DOKill();
+            pulseTween?.Kill();
+        }
+
+        private void Reset()
+        {
+            visualRoot = transform.Find("Visual");
+            spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+            capacityLabel = GetComponentInChildren<TextMeshPro>();
+            bodyCollider = GetComponent<Collider2D>();
+            bodyCollider3D = GetComponent<BoxCollider>();
+            jellyController = GetComponent<JellyController>();
+        }
+    }
+}
