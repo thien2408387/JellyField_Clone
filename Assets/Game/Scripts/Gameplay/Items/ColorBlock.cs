@@ -156,6 +156,7 @@ namespace NexZap.Gameplay.Items
             bodyCollider3D.size = cubeSize;
             bodyCollider3D.enabled = false;
             cubeHighlightRenderer.enabled = false;
+            cubeHighlightRenderer2.enabled = false;
         }
 
         private static MeshRenderer CreateCubeRenderer(
@@ -306,6 +307,11 @@ namespace NexZap.Gameplay.Items
             if (cubeHighlightRenderer != null)
             {
                 cubeHighlightRenderer.enabled = false;
+            }
+
+            if (cubeHighlightRenderer2 != null)
+            {
+                cubeHighlightRenderer2.enabled = false;
             }
 
             RefreshVisual();

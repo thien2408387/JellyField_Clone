@@ -28,10 +28,15 @@ namespace NexZap.Gameplay.Mechanics
         private static readonly int SmoothnessId = Shader.PropertyToID("_Smoothness");
         private static readonly int GlossinessId = Shader.PropertyToID("_Glossiness");
 
+        // Ô 2 màu chia đôi theo chiều dọc: nửa trên = màu chính, nửa dưới = màu phụ (khớp preview trong Level Editor).
+        private const float HalfHeightScale = 0.5f;
+        private const float HalfCenterOffset = 0.25f;
+
         private PixelMaterialLibrary materialLibrary;
         private Material emptyCellMaterial;
-        private MaterialPropertyBlock bodyPropertyBlock;
-        private MaterialPropertyBlock fillPropertyBlock;
+        private MaterialPropertyBlock propertyBlock;
+        private MeshRenderer secondaryBodyRenderer;
+        private MeshRenderer secondaryFillRenderer;
         private bool isExistingBoardColor;
 
         public Vector2Int GridPosition { get; private set; }
@@ -138,6 +143,12 @@ namespace NexZap.Gameplay.Mechanics
 
         private void RefreshVisual()
         {
+            var isDual = PixelColorIds.IsDual(TargetColorId);
+            if (isDual)
+            {
+                EnsureSecondaryRenderers();
+            }
+
             if (IsEmpty)
             {
                 if (bodyRenderer != null && emptyCellMaterial != null)
@@ -145,34 +156,48 @@ namespace NexZap.Gameplay.Mechanics
                     bodyRenderer.sharedMaterial = emptyCellMaterial;
                 }
 
-                ApplyRenderer(bodyRenderer, emptyCellColor,
-                    bodyPropertyBlock ??= new MaterialPropertyBlock(), false, unfilledSmoothness);
-                if (fillRenderer != null)
-                {
-                    fillRenderer.gameObject.SetActive(false);
-                    fillRenderer.transform.localScale = Vector3.one;
-                    fillRenderer.transform.localPosition = Vector3.zero;
-                }
-
+                LayoutHalf(bodyRenderer, false, true, 1f, 0f);
+                ApplyRenderer(bodyRenderer, PixelColorIds.Empty, emptyCellColor, false, unfilledSmoothness);
+                HideRenderer(secondaryBodyRenderer);
+                HideRenderer(fillRenderer);
+                HideRenderer(secondaryFillRenderer);
                 return;
             }
 
-            var targetColor = materialLibrary != null
-                ? materialLibrary.GetTint(TargetColorId)
-                : Color.gray;
+            RefreshHalf(bodyRenderer, fillRenderer, PixelColorIds.GetPrimary(TargetColorId), isDual, true);
+
+            if (isDual)
+            {
+                RefreshHalf(
+                    secondaryBodyRenderer, secondaryFillRenderer, PixelColorIds.GetSecondary(TargetColorId), true, false);
+                return;
+            }
+
+            HideRenderer(secondaryBodyRenderer);
+            HideRenderer(secondaryFillRenderer);
+        }
+
+        private void RefreshHalf(MeshRenderer body, MeshRenderer fill, string colorId, bool isDual, bool isTopHalf)
+        {
+            if (body != null)
+            {
+                body.gameObject.SetActive(true);
+                LayoutHalf(body, isDual, isTopHalf, 1f, 0f);
+            }
+
+            var targetColor = materialLibrary != null ? materialLibrary.GetTint(colorId) : Color.gray;
 
             if (IsFilled)
             {
-                ApplyRenderer(bodyRenderer, targetColor, bodyPropertyBlock ??= new MaterialPropertyBlock(), true, filledSmoothness);
+                ApplyRenderer(body, colorId, targetColor, true, filledSmoothness);
 
-                if (fillRenderer != null)
+                if (fill != null)
                 {
-                    fillRenderer.gameObject.SetActive(!isExistingBoardColor);
+                    fill.gameObject.SetActive(!isExistingBoardColor);
                     if (!isExistingBoardColor)
                     {
-                        fillRenderer.transform.localScale = Vector3.one * filledPopScale;
-                        fillRenderer.transform.localPosition = new Vector3(0f, 0f, filledPopZ);
-                        ApplyRenderer(fillRenderer, targetColor, fillPropertyBlock ??= new MaterialPropertyBlock(), true, filledSmoothness);
+                        LayoutHalf(fill, isDual, isTopHalf, filledPopScale, filledPopZ);
+                        ApplyRenderer(fill, colorId, targetColor, true, filledSmoothness);
                     }
                 }
 
@@ -183,14 +208,58 @@ namespace NexZap.Gameplay.Mechanics
             var previewColor = Color.Lerp(shell, targetColor, previewStrength);
             previewColor = Desaturate(previewColor, previewDesaturation);
 
-            ApplyRenderer(bodyRenderer, previewColor, bodyPropertyBlock ??= new MaterialPropertyBlock(), true, unfilledSmoothness);
+            ApplyRenderer(body, colorId, previewColor, true, unfilledSmoothness);
+            HideRenderer(fill);
+        }
 
-            if (fillRenderer != null)
+        // Nhân bản Body/Fill để có renderer riêng cho màu phụ, tránh phải sửa prefab.
+        private void EnsureSecondaryRenderers()
+        {
+            if (secondaryBodyRenderer == null && bodyRenderer != null)
             {
-                fillRenderer.gameObject.SetActive(false);
-                fillRenderer.transform.localScale = Vector3.one;
-                fillRenderer.transform.localPosition = Vector3.zero;
+                secondaryBodyRenderer = CloneRenderer(bodyRenderer, "BodySecondary");
             }
+
+            if (secondaryFillRenderer == null && fillRenderer != null)
+            {
+                secondaryFillRenderer = CloneRenderer(fillRenderer, "FillSecondary");
+            }
+        }
+
+        private static MeshRenderer CloneRenderer(MeshRenderer source, string objectName)
+        {
+            var clone = Instantiate(source.gameObject, source.transform.parent);
+            clone.name = objectName;
+            clone.transform.localRotation = source.transform.localRotation;
+            return clone.GetComponent<MeshRenderer>();
+        }
+
+        private static void LayoutHalf(
+            MeshRenderer renderer, bool isDual, bool isTopHalf, float scale, float localZ)
+        {
+            if (renderer == null)
+            {
+                return;
+            }
+
+            var target = renderer.transform;
+            target.localScale = isDual
+                ? new Vector3(scale, scale * HalfHeightScale, scale)
+                : new Vector3(scale, scale, scale);
+            var localY = isDual ? (isTopHalf ? 1f : -1f) * HalfCenterOffset * scale : 0f;
+            target.localPosition = new Vector3(0f, localY, localZ);
+        }
+
+        private static void HideRenderer(MeshRenderer renderer)
+        {
+            if (renderer == null)
+            {
+                return;
+            }
+
+            renderer.gameObject.SetActive(false);
+            renderer.transform.localScale = Vector3.one;
+            renderer.transform.localPosition = Vector3.zero;
         }
 
         private static Color Desaturate(Color color, float amount)
@@ -206,8 +275,8 @@ namespace NexZap.Gameplay.Mechanics
 
         private void ApplyRenderer(
             MeshRenderer renderer,
+            string colorId,
             Color color,
-            MaterialPropertyBlock propertyBlock,
             bool useSharedMaterial,
             float smoothness)
         {
@@ -218,13 +287,14 @@ namespace NexZap.Gameplay.Mechanics
 
             if (useSharedMaterial && materialLibrary != null)
             {
-                var sharedMaterial = materialLibrary.GetMaterial(TargetColorId);
+                var sharedMaterial = materialLibrary.GetMaterial(colorId);
                 if (sharedMaterial != null)
                 {
                     renderer.sharedMaterial = JellyMaterialUtility.GetOrCreate(sharedMaterial, filledSmoothness);
                 }
             }
 
+            propertyBlock ??= new MaterialPropertyBlock();
             propertyBlock.Clear();
             if (renderer.sharedMaterial != null)
             {

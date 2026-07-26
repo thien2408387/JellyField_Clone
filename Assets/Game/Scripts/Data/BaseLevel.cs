@@ -208,7 +208,7 @@ namespace NexZap.Data
                         continue;
                     }
 
-                    var ids = cellValue.Split('/');
+                    var ids = PixelColorIds.Split(cellValue);
                     foreach (var colorId in ids)
                     {
                         if (string.IsNullOrEmpty(colorId)) continue;
@@ -242,7 +242,7 @@ namespace NexZap.Data
                             continue;
                         }
 
-                        var ids = cellValue.Split('/');
+                        var ids = PixelColorIds.Split(cellValue);
                         foreach (var colorId in ids)
                         {
                             if (string.IsNullOrEmpty(colorId)) continue;
@@ -497,11 +497,9 @@ namespace NexZap.Data
                     PushUndo();
                 }
 
-                var paintValue = brushColorId;
-                if (brushType == ColorBlockType.DualColor && !string.IsNullOrEmpty(secondaryBrushColorId))
-                {
-                    paintValue = $"{brushColorId}/{secondaryBrushColorId}";
-                }
+                var paintValue = brushType == ColorBlockType.DualColor
+                    ? PixelColorIds.Combine(brushColorId, secondaryBrushColorId)
+                    : brushColorId;
 
                 value = (eraser || e.button == 1) ? PixelColorIds.Empty : paintValue;
                 GUI.changed = true;
@@ -516,11 +514,10 @@ namespace NexZap.Data
             {
                 EditorGUI.DrawRect(inner, new Color(0.18f, 0.18f, 0.2f));
             }
-            else if (value.Contains('/'))
+            else if (PixelColorIds.IsDual(value))
             {
-                var parts = value.Split('/');
-                var c1 = library != null ? library.GetTint(parts[0]) : Color.gray;
-                var c2 = parts.Length > 1 && library != null ? library.GetTint(parts[1]) : Color.gray;
+                var c1 = library != null ? library.GetTint(PixelColorIds.GetPrimary(value)) : Color.gray;
+                var c2 = library != null ? library.GetTint(PixelColorIds.GetSecondary(value)) : Color.gray;
 
                 var topHalf = new Rect(inner.x, inner.y, inner.width, inner.height / 2f);
                 var bottomHalf = new Rect(inner.x, inner.y + inner.height / 2f, inner.width, inner.height / 2f);
