@@ -308,6 +308,11 @@ namespace NexZap.Gameplay.Items
                 cubeHighlightRenderer.enabled = false;
             }
 
+            if (cubeHighlightRenderer2 != null)
+            {
+                cubeHighlightRenderer2.enabled = false;
+            }
+
             RefreshVisual();
             PlaySpawn();
         }

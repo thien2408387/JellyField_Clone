@@ -73,9 +73,12 @@ namespace NexZap.Gameplay.Mechanics
                     if (!string.IsNullOrEmpty(targetColorId))
                     {
                         cell.ShowAsExistingColor();
-                        RemainingTarget++;
-                        remainingTargetsByColor.TryGetValue(targetColorId, out var colorCount);
-                        remainingTargetsByColor[targetColorId] = colorCount + 1;
+                        foreach (var colorId in cell.GetColorIds())
+                        {
+                            RemainingTarget++;
+                            remainingTargetsByColor.TryGetValue(colorId, out var colorCount);
+                            remainingTargetsByColor[colorId] = colorCount + 1;
+                        }
                     }
                     cells.Add(cell);
                     cellLookup[gridPos] = cell;
@@ -91,7 +94,8 @@ namespace NexZap.Gameplay.Mechanics
         public bool TryResolveDrop(Vector3 worldPosition, string[] colorIds, out int removedCount)
         {
             removedCount = 0;
-            if (colorIds == null || colorIds.Length == 0 || string.IsNullOrEmpty(colorIds[0]))
+            var validColorIds = NormalizeColorIds(colorIds);
+            if (validColorIds.Count == 0)
             {
                 return false;
             }
@@ -102,11 +106,12 @@ namespace NexZap.Gameplay.Mechanics
                 return false;
             }
 
-            var matchedCells = new HashSet<PixelCell>();
+            var matchesByColor = new Dictionary<string, HashSet<PixelCell>>();
             var matchedColors = new HashSet<string>();
 
-            // Collect matches for all colors in the block
-            foreach (var colorId in colorIds)
+            // Each colour in a dual block searches independently. A dual map cell
+            // participates in the component of either colour it currently contains.
+            foreach (var colorId in validColorIds)
             {
                 var matchedForColor = new HashSet<PixelCell>();
                 var queue = new Queue<PixelCell>();
@@ -114,7 +119,7 @@ namespace NexZap.Gameplay.Mechanics
                 foreach (var offset in Neighbors)
                 {
                     if (cellLookup.TryGetValue(dropPosition + offset, out var neighbor) &&
-                        neighbor.TargetColorId == colorId)
+                        neighbor.ContainsColor(colorId))
                     {
                         matchedForColor.Add(neighbor);
                         queue.Enqueue(neighbor);
@@ -127,76 +132,92 @@ namespace NexZap.Gameplay.Mechanics
                     
                     while (queue.Count > 0)
                     {
-                        var current = queue.Dequeue();
-                        foreach (var offset in Neighbors)
-                        {
-                            if (!cellLookup.TryGetValue(current.GridPosition + offset, out var neighbor) ||
-                                neighbor.TargetColorId != colorId || !matchedForColor.Add(neighbor))
+                            var current = queue.Dequeue();
+                            foreach (var offset in Neighbors)
                             {
-                                continue;
-                            }
+                                if (!cellLookup.TryGetValue(current.GridPosition + offset, out var neighbor) ||
+                                    !neighbor.ContainsColor(colorId) || !matchedForColor.Add(neighbor))
+                                {
+                                    continue;
+                                }
 
                             queue.Enqueue(neighbor);
                         }
                     }
-                    
-                    foreach (var m in matchedForColor) matchedCells.Add(m);
+                    matchesByColor[colorId] = matchedForColor;
                 }
             }
 
-            // Logic for dropping
             if (matchedColors.Count == 0)
             {
-                // No matches
-                if (colorIds.Length == 1)
-                {
-                    // Single color: just place it
-                    dropCell.SetPlacedColor(colorIds[0]);
-                    return true;
-                }
-                else
-                {
-                    // Dual color: if neither matches, it bounces back (cannot place 2 colors in 1 cell)
-                    return false;
-                }
+                dropCell.SetPlacedColors(validColorIds.ToArray());
+                return true;
             }
 
-            // Apply removals
             var removedTargetCount = 0;
-            foreach (var cell in matchedCells)
+            foreach (var colorId in matchedColors)
             {
-                if (cell.CountsTowardTarget)
+                foreach (var cell in matchesByColor[colorId])
                 {
-                    removedTargetCount++;
-                }
-                
-                var cellColor = cell.TargetColorId;
-                cell.ClearColor();
+                    if (!cell.RemoveColor(colorId, out var removedTargetColor))
+                    {
+                        continue;
+                    }
 
-                if (!string.IsNullOrEmpty(cellColor))
-                {
-                    remainingTargetsByColor.TryGetValue(cellColor, out var remainingForColor);
-                    remainingTargetsByColor[cellColor] = Mathf.Max(0, remainingForColor - 1);
+                    removedCount++;
+                    if (removedTargetColor)
+                    {
+                        removedTargetCount++;
+                        remainingTargetsByColor.TryGetValue(colorId, out var remainingForColor);
+                        remainingTargetsByColor[colorId] = Mathf.Max(0, remainingForColor - 1);
+                    }
                 }
             }
 
-            removedCount = matchedCells.Count;
             RemainingTarget = Mathf.Max(0, RemainingTarget - removedTargetCount);
 
-            // Handle remainder for dual color block
-            if (colorIds.Length > 1 && matchedColors.Count == 1)
+            var remainingBlockColors = new List<string>();
+            foreach (var colorId in validColorIds)
             {
-                var remainingColor = matchedColors.Contains(colorIds[0]) ? colorIds[1] : colorIds[0];
-                dropCell.SetPlacedColor(remainingColor);
+                if (!matchedColors.Contains(colorId))
+                {
+                    remainingBlockColors.Add(colorId);
+                }
             }
 
+            dropCell.SetPlacedColors(remainingBlockColors.ToArray());
             return true;
+        }
+
+        private static List<string> NormalizeColorIds(string[] colorIds)
+        {
+            var result = new List<string>(2);
+            if (colorIds == null)
+            {
+                return result;
+            }
+
+            foreach (var colorId in colorIds)
+            {
+                if (string.IsNullOrWhiteSpace(colorId) || result.Contains(colorId))
+                {
+                    continue;
+                }
+
+                result.Add(colorId);
+                if (result.Count == 2)
+                {
+                    break;
+                }
+            }
+
+            return result;
         }
 
         public bool TryGetDropWorldPosition(Vector3 worldPosition, out Vector3 snappedPosition)
         {
             var gridPosition = WorldToGrid(worldPosition);
-            if (cellLookup.TryGetValue(gridPosition, out var cell) && cell.IsEmpty)
+            if (cellLookup.TryGetValue(gridPosition, out var cell))
             {
                 snappedPosition = cell.transform.position;
                 return true;
