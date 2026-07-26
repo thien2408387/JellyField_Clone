@@ -65,6 +65,11 @@ namespace NexZap.Gameplay.Mechanics
             {
                 for (var x = 0; x < Width; x++)
                 {
+                    if (!levelData.IsCellActive(x, y))
+                    {
+                        continue;
+                    }
+
                     var targetColorId = levelData.GetCellColorId(x, y);
                     var cell = Instantiate(cellPrefab, cellsRoot);
                     cell.transform.localPosition = new Vector3(offsetX + x * cellSize, offsetY + y * cellSize, 0f);

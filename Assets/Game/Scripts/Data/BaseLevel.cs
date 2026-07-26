@@ -16,6 +16,24 @@ namespace NexZap.Data
         DualColor
     }
 
+    public enum GridEditMode
+    {
+        [LabelText("Tô màu")]
+        PaintColor,
+
+        [LabelText("Bật / tắt ô")]
+        CellActivity
+    }
+
+    public enum CellActivityBrush
+    {
+        [LabelText("Hoạt động")]
+        Active,
+
+        [LabelText("Ẩn ô")]
+        Hidden
+    }
+
     [Serializable]
     public class ColorBlockData
     {
@@ -139,6 +157,15 @@ namespace NexZap.Data
         public ColorBlockType brushType = ColorBlockType.SingleColor;
 
         [BoxGroup("2) Vẽ Pixel")]
+        [EnumToggleButtons, LabelText("Chế độ chỉnh")]
+        public GridEditMode gridEditMode = GridEditMode.PaintColor;
+
+        [BoxGroup("2) Vẽ Pixel")]
+        [ShowIf("@gridEditMode == GridEditMode.CellActivity")]
+        [EnumToggleButtons, LabelText("Trạng thái cọ")]
+        public CellActivityBrush cellActivityBrush = CellActivityBrush.Active;
+
+        [BoxGroup("2) Vẽ Pixel")]
         [PropertySpace(8)]
 #if UNITY_EDITOR
         [CustomValueDrawer("DrawBrushColorId")]
@@ -166,6 +193,8 @@ namespace NexZap.Data
             HideColumnIndices = true, HideRowIndices = true, ResizableColumns = false)]
         [SerializeField]
         private string[,] grid;
+
+        private const string InactiveCellPrefix = "__inactive__:";
 
 #if UNITY_EDITOR
         [FormerlySerializedAs("grid")]
@@ -202,7 +231,13 @@ namespace NexZap.Data
             {
                 for (var y = 0; y < grid.GetLength(1); y++)
                 {
-                    var cellValue = grid[x, y];
+                    var storedValue = grid[x, y];
+                    if (IsInactiveCellValue(storedValue))
+                    {
+                        continue;
+                    }
+
+                    var cellValue = DecodeCellColor(storedValue);
                     if (string.IsNullOrEmpty(cellValue))
                     {
                         continue;
@@ -236,7 +271,13 @@ namespace NexZap.Data
                 {
                     for (var y = 0; y < grid.GetLength(1); y++)
                     {
-                        var cellValue = grid[x, y];
+                        var storedValue = grid[x, y];
+                        if (IsInactiveCellValue(storedValue))
+                        {
+                            continue;
+                        }
+
+                        var cellValue = DecodeCellColor(storedValue);
                         if (string.IsNullOrEmpty(cellValue))
                         {
                             continue;
@@ -292,7 +333,18 @@ namespace NexZap.Data
                 return PixelColorIds.Empty;
             }
 
-            return grid[x, height - 1 - y] ?? PixelColorIds.Empty;
+            return DecodeCellColor(grid[x, height - 1 - y]);
+        }
+
+        public bool IsCellActive(int x, int y)
+        {
+            EnsureGrid();
+            if (x < 0 || y < 0 || x >= width || y >= height)
+            {
+                return false;
+            }
+
+            return !IsInactiveCellValue(grid[x, height - 1 - y]);
         }
 
         public void SetCellColorId(int x, int y, string colorId)
@@ -303,8 +355,34 @@ namespace NexZap.Data
                 return;
             }
 
-            grid[x, height - 1 - y] = colorId ?? PixelColorIds.Empty;
+            var gridY = height - 1 - y;
+            var isActive = !IsInactiveCellValue(grid[x, gridY]);
+            grid[x, gridY] = EncodeCellValue(colorId, isActive);
             MarkDirty();
+        }
+
+        private static bool IsInactiveCellValue(string value)
+        {
+            return !string.IsNullOrEmpty(value) &&
+                   value.StartsWith(InactiveCellPrefix, StringComparison.Ordinal);
+        }
+
+        private static string DecodeCellColor(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return PixelColorIds.Empty;
+            }
+
+            return IsInactiveCellValue(value)
+                ? value.Substring(InactiveCellPrefix.Length)
+                : value;
+        }
+
+        private static string EncodeCellValue(string colorId, bool isActive)
+        {
+            var normalizedColor = colorId ?? PixelColorIds.Empty;
+            return isActive ? normalizedColor : InactiveCellPrefix + normalizedColor;
         }
 
         public PixelMaterialLibrary ResolvePixelMaterialLibrary()
@@ -447,7 +525,7 @@ namespace NexZap.Data
             {
                 for (var y = 0; y < height; y++)
                 {
-                    grid[x, y] = paintId;
+                    grid[x, y] = EncodeCellValue(paintId, !IsInactiveCellValue(grid[x, y]));
                 }
             }
 
@@ -458,7 +536,16 @@ namespace NexZap.Data
         private void ClearAll()
         {
             PushUndo();
-            grid = new string[Mathf.Max(1, width), Mathf.Max(1, height)];
+            EnsureGrid();
+            for (var x = 0; x < width; x++)
+            {
+                for (var y = 0; y < height; y++)
+                {
+                    grid[x, y] = EncodeCellValue(
+                        PixelColorIds.Empty,
+                        !IsInactiveCellValue(grid[x, y]));
+                }
+            }
             MarkDirty();
         }
 
@@ -497,13 +584,26 @@ namespace NexZap.Data
                     PushUndo();
                 }
 
-                var paintValue = brushColorId;
-                if (brushType == ColorBlockType.DualColor && !string.IsNullOrEmpty(secondaryBrushColorId))
+                if (gridEditMode == GridEditMode.CellActivity)
                 {
-                    paintValue = $"{brushColorId}/{secondaryBrushColorId}";
+                    var makeActive = e.button == 1 || cellActivityBrush == CellActivityBrush.Hidden
+                        ? false
+                        : true;
+                    value = EncodeCellValue(DecodeCellColor(value), makeActive);
+                }
+                else
+                {
+                    var paintValue = brushColorId;
+                    if (brushType == ColorBlockType.DualColor && !string.IsNullOrEmpty(secondaryBrushColorId))
+                    {
+                        paintValue = $"{brushColorId}/{secondaryBrushColorId}";
+                    }
+
+                    var isActive = !IsInactiveCellValue(value);
+                    var paintedColor = (eraser || e.button == 1) ? PixelColorIds.Empty : paintValue;
+                    value = EncodeCellValue(paintedColor, isActive);
                 }
 
-                value = (eraser || e.button == 1) ? PixelColorIds.Empty : paintValue;
                 GUI.changed = true;
                 MarkDirty();
                 e.Use();
@@ -511,14 +611,16 @@ namespace NexZap.Data
 
             var inner = new Rect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
             var library = ResolvePixelMaterialLibrary();
+            var isCellActive = !IsInactiveCellValue(value);
+            var displayValue = DecodeCellColor(value);
 
-            if (string.IsNullOrEmpty(value))
+            if (string.IsNullOrEmpty(displayValue))
             {
                 EditorGUI.DrawRect(inner, new Color(0.18f, 0.18f, 0.2f));
             }
-            else if (value.Contains('/'))
+            else if (displayValue.Contains('/'))
             {
-                var parts = value.Split('/');
+                var parts = displayValue.Split('/');
                 var c1 = library != null ? library.GetTint(parts[0]) : Color.gray;
                 var c2 = parts.Length > 1 && library != null ? library.GetTint(parts[1]) : Color.gray;
 
@@ -530,8 +632,14 @@ namespace NexZap.Data
             }
             else
             {
-                var color = library != null ? library.GetTint(value) : Color.gray;
+                var color = library != null ? library.GetTint(displayValue) : Color.gray;
                 EditorGUI.DrawRect(inner, color);
+            }
+
+            if (!isCellActive)
+            {
+                EditorGUI.DrawRect(inner, new Color(0.025f, 0.025f, 0.03f, 0.88f));
+                GUI.Label(inner, "×", EditorStyles.centeredGreyMiniLabel);
             }
 
             return value;

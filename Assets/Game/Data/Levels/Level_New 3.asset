@@ -1,0 +1,151 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce99316987ecd73488415e0d11f2a712, type: 3}
+  m_Name: Level_New 3
+  m_EditorClassIdentifier: 
+  serializationData:
+    SerializedFormat: 2
+    SerializedBytes: 
+    ReferencedUnityObjects: []
+    SerializedBytesString: 
+    Prefab: {fileID: 0}
+    PrefabModificationsReferencedUnityObjects: []
+    PrefabModifications: []
+    SerializationNodes:
+    - Name: grid
+      Entry: 7
+      Data: 0|System.String[,], mscorlib
+    - Name: 
+      Entry: 12
+      Data: 25
+    - Name: ranks
+      Entry: 1
+      Data: 5|5
+    - Name: 
+      Entry: 1
+      Data: '__inactive__:'
+    - Name: 
+      Entry: 1
+      Data: '__inactive__:'
+    - Name: 
+      Entry: 1
+      Data: f7ee2784bb6b407da9ff864309c94b34/da61cbb4338840449e376dbf5da7f57b
+    - Name: 
+      Entry: 1
+      Data: '__inactive__:'
+    - Name: 
+      Entry: 1
+      Data: '__inactive__:'
+    - Name: 
+      Entry: 1
+      Data: '__inactive__:'
+    - Name: 
+      Entry: 1
+      Data: 58abcfe1c72845f19bdd450feceab1a6/a2b5ce119aca49db8d8f8a9ad298a7fb
+    - Name: 
+      Entry: 1
+      Data: f7ee2784bb6b407da9ff864309c94b34/da61cbb4338840449e376dbf5da7f57b
+    - Name: 
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 1
+      Data: '__inactive__:'
+    - Name: 
+      Entry: 1
+      Data: 58abcfe1c72845f19bdd450feceab1a6/985e49645e474b15918b1f44f72de5eb
+    - Name: 
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 1
+      Data: 04d6908279094439a21b176ae7d252eb/a2b5ce119aca49db8d8f8a9ad298a7fb
+    - Name: 
+      Entry: 1
+      Data: 840175d5a4cc4a03aa97b704d7c5e62d/38098f653a834f1283e3d412a8a53012
+    - Name: 
+      Entry: 1
+      Data: 840175d5a4cc4a03aa97b704d7c5e62d/38098f653a834f1283e3d412a8a53012
+    - Name: 
+      Entry: 1
+      Data: '__inactive__:'
+    - Name: 
+      Entry: 1
+      Data: 04d6908279094439a21b176ae7d252eb/985e49645e474b15918b1f44f72de5eb
+    - Name: 
+      Entry: 1
+      Data: 840175d5a4cc4a03aa97b704d7c5e62d/38098f653a834f1283e3d412a8a53012
+    - Name: 
+      Entry: 1
+      Data: 840175d5a4cc4a03aa97b704d7c5e62d/38098f653a834f1283e3d412a8a53012
+    - Name: 
+      Entry: 1
+      Data: '__inactive__:'
+    - Name: 
+      Entry: 1
+      Data: '__inactive__:'
+    - Name: 
+      Entry: 1
+      Data: '__inactive__:'
+    - Name: 
+      Entry: 6
+      Data: 
+    - Name: 
+      Entry: 1
+      Data: '__inactive__:'
+    - Name: 
+      Entry: 1
+      Data: '__inactive__:'
+    - Name: 
+      Entry: 13
+      Data: 
+    - Name: 
+      Entry: 8
+      Data: 
+    - Name: legacyBlockColorGrid
+      Entry: 6
+      Data: 
+  width: 5
+  height: 5
+  spacing: 1.1
+  pixelScale: {x: 1, y: 1}
+  idlePixelPrefab: {fileID: 1409224966014894005, guid: e482e9f76bfe68247acbe8af6c60004d, type: 3}
+  fillPixelPrefab: {fileID: 3512688344168071525, guid: 97b9d1e225d6e79419415d5d2ff20147, type: 3}
+  pixelMaterialLibrary: {fileID: 11400000, guid: d95da50ed4d339a4d8b6365f48a38a1e, type: 2}
+  brushType: 1
+  gridEditMode: 0
+  cellActivityBrush: 0
+  brushColorId: a2b5ce119aca49db8d8f8a9ad298a7fb
+  secondaryBrushColorId: f7ee2784bb6b407da9ff864309c94b34
+  eraser: 0
+  selectionLines:
+  - blocks:
+    - legacyColor: 0
+      blockType: 1
+      colorId: 58abcfe1c72845f19bdd450feceab1a6
+      secondaryColorId: 04d6908279094439a21b176ae7d252eb
+      capacity: 4
+    - legacyColor: 0
+      blockType: 1
+      colorId: 985e49645e474b15918b1f44f72de5eb
+      secondaryColorId: a2b5ce119aca49db8d8f8a9ad298a7fb
+      capacity: 4
+    - legacyColor: 0
+      blockType: 1
+      colorId: f7ee2784bb6b407da9ff864309c94b34
+      secondaryColorId: 840175d5a4cc4a03aa97b704d7c5e62d
+      capacity: 6
+    - legacyColor: 0
+      blockType: 1
+      colorId: da61cbb4338840449e376dbf5da7f57b
+      secondaryColorId: 38098f653a834f1283e3d412a8a53012
+      capacity: 6
