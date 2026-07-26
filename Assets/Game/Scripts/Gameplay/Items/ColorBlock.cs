@@ -56,6 +56,8 @@ namespace NexZap.Gameplay.Items
         private bool isSelectable;
         private bool isDimmed;
         private ColorBlockPool pool;
+        private Vector3 baseRootLocalScale;
+        private Quaternion baseRootLocalRotation;
 
         public string[] ColorIds { get; private set; }
         public int RemainingCapacity { get; private set; }
@@ -68,6 +70,9 @@ namespace NexZap.Gameplay.Items
 
         private void Awake()
         {
+            baseRootLocalScale = transform.localScale;
+            baseRootLocalRotation = transform.localRotation;
+
             if (bodyCollider == null)
             {
                 bodyCollider = GetComponent<Collider2D>();
@@ -237,6 +242,7 @@ namespace NexZap.Gameplay.Items
 
         public void Initialize(string[] colorIds, int capacity, PixelMaterialLibrary materialLibrary)
         {
+            RestoreRootTransform();
             EnsureValidSpriteMaterials();
             jellyController?.ResetVisual();
             ColorIds = colorIds ?? new[] { PixelColorIds.Empty };
@@ -306,6 +312,11 @@ namespace NexZap.Gameplay.Items
             if (cubeHighlightRenderer != null)
             {
                 cubeHighlightRenderer.enabled = false;
+            }
+
+            if (cubeHighlightRenderer2 != null)
+            {
+                cubeHighlightRenderer2.enabled = false;
             }
 
             RefreshVisual();
@@ -498,7 +509,7 @@ namespace NexZap.Gameplay.Items
 
             isSelectable = false;
             isDimmed = false;
-            transform.localScale = Vector3.one;
+            RestoreRootTransform();
             Vis.localScale = Vector3.one;
 
             if (bodyCollider != null)
@@ -660,6 +671,15 @@ namespace NexZap.Gameplay.Items
                 cubeColor2.a = 1f;
                 ApplyCubeColor(cubeRenderer2, cubeColor2, cubePropertyBlock);
             }
+        }
+
+        private void RestoreRootTransform()
+        {
+            // The prefab root is intentionally scaled to 3. Pooling must restore
+            // that authored scale instead of Vector3.one, otherwise reused blocks
+            // appear at one third of their original size after Reset/Next Level.
+            transform.localScale = baseRootLocalScale;
+            transform.localRotation = baseRootLocalRotation;
         }
 
         private void OnDestroy()

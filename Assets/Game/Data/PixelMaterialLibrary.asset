@@ -62,3 +62,11 @@ MonoBehaviour:
     displayName: "N\xE2u"
     tint: {r: 0.2981131, g: 0.18457034, b: 0.01518687, a: 1}
     material: {fileID: 2100000, guid: ea897a26c9fb90c4c8279e6ee1f5b5e9, type: 2}
+  - id: fb1bb179a60247988b00fcd261221403
+    displayName: Xanh Lam
+    tint: {r: 0, g: 0.76182795, b: 1, a: 1}
+    material: {fileID: 2100000, guid: 515bbe99c2d3bfc49acbb66806eaf3e9, type: 2}
+  - id: d4ef6c7d03c74262ba053b6c701d7cbd
+    displayName: "Xanh L\xE1 Nh\u1EA1t"
+    tint: {r: 0.5169811, g: 0.5169811, b: 0.5169811, a: 1}
+    material: {fileID: 2100000, guid: 81710f40e3c10234a86efa7586e1c9f4, type: 2}
