@@ -73,9 +73,14 @@ namespace NexZap.Gameplay.Mechanics
                     if (!string.IsNullOrEmpty(targetColorId))
                     {
                         cell.ShowAsExistingColor();
-                        RemainingTarget++;
-                        remainingTargetsByColor.TryGetValue(targetColorId, out var colorCount);
-                        remainingTargetsByColor[targetColorId] = colorCount + 1;
+
+                        // Ô 2 màu = 2 lớp, phải clear 2 lần nên tính 2 target.
+                        foreach (var layerColorId in PixelColorIds.Split(targetColorId))
+                        {
+                            RemainingTarget++;
+                            remainingTargetsByColor.TryGetValue(layerColorId, out var colorCount);
+                            remainingTargetsByColor[layerColorId] = colorCount + 1;
+                        }
                     }
                     cells.Add(cell);
                     cellLookup[gridPos] = cell;
@@ -102,46 +107,20 @@ namespace NexZap.Gameplay.Mechanics
                 return false;
             }
 
-            var matchedCells = new HashSet<PixelCell>();
             var matchedColors = new HashSet<string>();
+            var matchesByColor = new List<KeyValuePair<string, HashSet<PixelCell>>>();
 
             // Collect matches for all colors in the block
             foreach (var colorId in colorIds)
             {
-                var matchedForColor = new HashSet<PixelCell>();
-                var queue = new Queue<PixelCell>();
-                
-                foreach (var offset in Neighbors)
+                var matchedForColor = CollectConnectedMatches(dropPosition, colorId);
+                if (matchedForColor.Count == 0)
                 {
-                    if (cellLookup.TryGetValue(dropPosition + offset, out var neighbor) &&
-                        neighbor.TargetColorId == colorId)
-                    {
-                        matchedForColor.Add(neighbor);
-                        queue.Enqueue(neighbor);
-                    }
+                    continue;
                 }
 
-                if (queue.Count > 0)
-                {
-                    matchedColors.Add(colorId);
-                    
-                    while (queue.Count > 0)
-                    {
-                        var current = queue.Dequeue();
-                        foreach (var offset in Neighbors)
-                        {
-                            if (!cellLookup.TryGetValue(current.GridPosition + offset, out var neighbor) ||
-                                neighbor.TargetColorId != colorId || !matchedForColor.Add(neighbor))
-                            {
-                                continue;
-                            }
-
-                            queue.Enqueue(neighbor);
-                        }
-                    }
-                    
-                    foreach (var m in matchedForColor) matchedCells.Add(m);
-                }
+                matchedColors.Add(colorId);
+                matchesByColor.Add(new KeyValuePair<string, HashSet<PixelCell>>(colorId, matchedForColor));
             }
 
             // Logic for dropping
@@ -161,26 +140,30 @@ namespace NexZap.Gameplay.Mechanics
                 }
             }
 
-            // Apply removals
+            // Apply removals: mỗi màu chỉ bóc đúng lớp của nó, ô 2 màu sẽ còn lại lớp kia.
             var removedTargetCount = 0;
-            foreach (var cell in matchedCells)
+            foreach (var match in matchesByColor)
             {
-                if (cell.CountsTowardTarget)
+                var colorId = match.Key;
+                foreach (var cell in match.Value)
                 {
-                    removedTargetCount++;
-                }
-                
-                var cellColor = cell.TargetColorId;
-                cell.ClearColor();
+                    var countedTowardTarget = cell.CountsTowardTarget;
+                    if (!cell.RemoveColorLayer(colorId))
+                    {
+                        continue;
+                    }
 
-                if (!string.IsNullOrEmpty(cellColor))
-                {
-                    remainingTargetsByColor.TryGetValue(cellColor, out var remainingForColor);
-                    remainingTargetsByColor[cellColor] = Mathf.Max(0, remainingForColor - 1);
+                    removedCount++;
+                    if (countedTowardTarget)
+                    {
+                        removedTargetCount++;
+                    }
+
+                    remainingTargetsByColor.TryGetValue(colorId, out var remainingForColor);
+                    remainingTargetsByColor[colorId] = Mathf.Max(0, remainingForColor - 1);
                 }
             }
 
-            removedCount = matchedCells.Count;
             RemainingTarget = Mathf.Max(0, RemainingTarget - removedTargetCount);
 
             // Handle remainder for dual color block
@@ -191,6 +174,44 @@ namespace NexZap.Gameplay.Mechanics
             }
 
             return true;
+        }
+
+        // Vùng pixel liền kề (BFS 4 hướng) chứa màu này, bắt đầu từ các ô cạnh vị trí thả.
+        private HashSet<PixelCell> CollectConnectedMatches(Vector2Int dropPosition, string colorId)
+        {
+            var matchedForColor = new HashSet<PixelCell>();
+            if (string.IsNullOrEmpty(colorId))
+            {
+                return matchedForColor;
+            }
+
+            var queue = new Queue<PixelCell>();
+            foreach (var offset in Neighbors)
+            {
+                if (cellLookup.TryGetValue(dropPosition + offset, out var neighbor) &&
+                    neighbor.HasTargetColor(colorId) &&
+                    matchedForColor.Add(neighbor))
+                {
+                    queue.Enqueue(neighbor);
+                }
+            }
+
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                foreach (var offset in Neighbors)
+                {
+                    if (!cellLookup.TryGetValue(current.GridPosition + offset, out var neighbor) ||
+                        !neighbor.HasTargetColor(colorId) || !matchedForColor.Add(neighbor))
+                    {
+                        continue;
+                    }
+
+                    queue.Enqueue(neighbor);
+                }
+            }
+
+            return matchedForColor;
         }
 
         public bool TryGetDropWorldPosition(Vector3 worldPosition, out Vector3 snappedPosition)
@@ -248,7 +269,7 @@ namespace NexZap.Gameplay.Mechanics
 
             foreach (var cell in unfilledCells)
             {
-                if (cell.TargetColorId != colorId)
+                if (!cell.HasTargetColor(colorId))
                 {
                     continue;
                 }
@@ -264,7 +285,7 @@ namespace NexZap.Gameplay.Mechanics
             fillWaveSnapshot = new HashSet<PixelCell>();
             foreach (var cell in unfilledCells)
             {
-                if (cell.TargetColorId != colorId)
+                if (!cell.HasTargetColor(colorId))
                 {
                     continue;
                 }
@@ -288,7 +309,7 @@ namespace NexZap.Gameplay.Mechanics
 
             foreach (var cell in unfilledCells)
             {
-                if (cell.TargetColorId != colorId || !IsUnfilledColorRegionFrontier(cell))
+                if (!cell.HasTargetColor(colorId) || !IsUnfilledColorRegionFrontier(cell))
                 {
                     continue;
                 }
@@ -310,7 +331,7 @@ namespace NexZap.Gameplay.Mechanics
                         continue;
                     }
 
-                    if (neighbor.IsFilled || neighbor.TargetColorId != colorId || layers.ContainsKey(neighbor))
+                    if (neighbor.IsFilled || !neighbor.HasTargetColor(colorId) || layers.ContainsKey(neighbor))
                     {
                         continue;
                     }
@@ -375,7 +396,7 @@ namespace NexZap.Gameplay.Mechanics
             for (var i = 0; i < unfilledCells.Count; i++)
             {
                 var cell = unfilledCells[i];
-                if (cell.TargetColorId != colorId)
+                if (!cell.HasTargetColor(colorId))
                 {
                     continue;
                 }
@@ -687,7 +708,7 @@ namespace NexZap.Gameplay.Mechanics
                 return false;
             }
 
-            return !cell.IsFilled && cell.TargetColorId != colorId;
+            return !cell.IsFilled && !cell.HasTargetColor(colorId);
         }
 
         private void RecalculateBounds()

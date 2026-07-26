@@ -46,6 +46,28 @@ namespace NexZap.Data
                 : new[] { cellColorId };
         }
 
+        public static bool Contains(string cellColorId, string colorId)
+        {
+            if (string.IsNullOrEmpty(cellColorId) || string.IsNullOrEmpty(colorId))
+            {
+                return false;
+            }
+
+            return GetPrimary(cellColorId) == colorId || GetSecondary(cellColorId) == colorId;
+        }
+
+        /// <summary>Bỏ 1 lớp màu khỏi ô; ô 2 màu còn lại id của màu kia, ô 1 màu thành rỗng.</summary>
+        public static string Remove(string cellColorId, string colorId)
+        {
+            if (!Contains(cellColorId, colorId))
+            {
+                return cellColorId ?? Empty;
+            }
+
+            var primaryColorId = GetPrimary(cellColorId);
+            return primaryColorId == colorId ? GetSecondary(cellColorId) : primaryColorId;
+        }
+
         public static string Combine(string primaryColorId, string secondaryColorId)
         {
             if (string.IsNullOrEmpty(primaryColorId))

@@ -48,6 +48,28 @@ namespace NexZap.Gameplay.Mechanics
         public bool IsFillableFlag => isFillable;
         public void SetFillableFlag(bool value) => isFillable = value;
 
+        public bool HasTargetColor(string colorId) => PixelColorIds.Contains(TargetColorId, colorId);
+
+        /// <summary>Xoá 1 lớp màu: ô 2 màu tụt xuống còn 1 màu, ô 1 màu thì trống hẳn.</summary>
+        public bool RemoveColorLayer(string colorId)
+        {
+            if (!HasTargetColor(colorId))
+            {
+                return false;
+            }
+
+            var remainingColorId = PixelColorIds.Remove(TargetColorId, colorId);
+            if (string.IsNullOrEmpty(remainingColorId))
+            {
+                ClearColor();
+                return true;
+            }
+
+            TargetColorId = remainingColorId;
+            RefreshVisual();
+            return true;
+        }
+
         public void Initialize(
             Vector2Int gridPosition,
             string targetColorId,
@@ -129,7 +151,7 @@ namespace NexZap.Gameplay.Mechanics
 
         public bool TryFill(string colorId)
         {
-            if (IsFilled || string.IsNullOrEmpty(colorId) || colorId != TargetColorId || !isFillable)
+            if (IsFilled || !HasTargetColor(colorId) || !isFillable)
             {
                 return false;
             }
